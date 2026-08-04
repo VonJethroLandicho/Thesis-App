@@ -1,0 +1,23 @@
+item,value,notes
+total_accepted_events,586.0,All candidate events marked keep_event=yes based on user statement that reviewed clips appear to be proper strikes.
+ioi_short_max_seconds,0.568889,Non-first events with IOI <= this threshold become SHORT.
+ioi_medium_max_seconds,1.145517,Non-first events with IOI > short max and <= this threshold become MEDIUM.
+ioi_long_min_seconds,1.145517,Non-first events with IOI > this threshold become LONG.
+strength_weak_max,0.027093,Events with normalized onset strength <= this threshold become WEAK.
+strength_medium_max,0.036266,Events with normalized onset strength > weak max and <= this threshold become MEDIUM.
+strength_strong_min,0.036266,Events with normalized onset strength > this threshold become STRONG.
+PERF-001_accepted_events,235.0,Accepted events per recording.
+PERF-002_accepted_events,39.0,Accepted events per recording.
+PERF-003_accepted_events,34.0,Accepted events per recording.
+PERF-004_accepted_events,214.0,Accepted events per recording.
+PERF-005_accepted_events,64.0,Accepted events per recording.
+token_count_LONG_MEDIUM,63.0,Number of accepted events assigned this token.
+token_count_LONG_STRONG,84.0,Number of accepted events assigned this token.
+token_count_LONG_WEAK,47.0,Number of accepted events assigned this token.
+token_count_MEDIUM_MEDIUM,58.0,Number of accepted events assigned this token.
+token_count_MEDIUM_STRONG,80.0,Number of accepted events assigned this token.
+token_count_MEDIUM_WEAK,52.0,Number of accepted events assigned this token.
+token_count_SHORT_MEDIUM,74.0,Number of accepted events assigned this token.
+token_count_SHORT_STRONG,32.0,Number of accepted events assigned this token.
+token_count_SHORT_WEAK,91.0,Number of accepted events assigned this token.
+token_count_START_WEAK,5.0,Number of accepted events assigned this token.

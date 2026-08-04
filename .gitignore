@@ -1,0 +1,31 @@
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local environments and machine-specific settings
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Streamlit secrets must remain local
+**/.streamlit/secrets.toml
+
+# Keep data-pipeline scripts, but only track CSV files under its data folder
+/data_pipeline/data/**
+!/data_pipeline/data/**/
+!/data_pipeline/data/**/*.csv
+
+# Runtime output is versioned by the application, not by source control
+results/
+
+# Logs and operating-system metadata
+*.log
+.DS_Store
+Thumbs.db
