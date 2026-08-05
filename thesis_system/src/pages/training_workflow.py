@@ -23,7 +23,9 @@ from src.services.session_state import (
     evaluation_status_display,
     invalidate_evaluation,
     loro_fold_specification,
+    record_session_run,
 )
+
 
 
 def _missing_requirements(requirements: list[tuple[bool, str]]) -> list[str]:
@@ -332,8 +334,17 @@ def render() -> None:
                         st.session_state.training_errors = run.errors
 
                     st.session_state.artifact_paths = artifact_paths
+                    run_id = str(artifact_paths.get("run_id", "run"))
+                    record_session_run(
+                        st.session_state,
+                        run_id=run_id,
+                        fold_results=fold_results,
+                        summary_results=summary_results,
+                        config=config,
+                    )
                     progress_bar.empty()
                     progress_message.empty()
+
 
     with st.expander("Review model-fold details and saved settings", expanded=False):
         st.markdown("### LORO workflow matrix")

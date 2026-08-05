@@ -16,7 +16,10 @@ from src.metrics.registry import (
     EFFICIENCY_METRICS,
     PREDICTION_METRICS,
 )
-from src.services.session_state import evaluation_status_display
+from src.services.session_state import (
+    clear_session_run_history,
+    evaluation_status_display,
+)
 
 
 SUMMARY_METRIC_LABELS = {
@@ -29,6 +32,74 @@ SUMMARY_METRIC_LABELS = {
         "Lower is generally better",
     ),
 }
+
+
+def _render_session_comparison() -> None:
+    st.markdown("### Session multi-run comparison")
+    session_runs = st.session_state.get("session_run_history", [])
+    if not session_runs:
+        empty_result(
+            "No session runs recorded yet",
+            "Completed evaluation runs in this active browser session will appear here "
+            "for side-by-side comparison.",
+        )
+        return
+
+    st.caption(
+        f"Displaying {len(session_runs)} run(s) recorded during this active browser session. "
+        "Refreshing the browser tab will reset this session history."
+    )
+
+    comparison_rows = []
+    for index, run in enumerate(session_runs, start=1):
+        summary = run.get("summary_results")
+        run_label = f"Run {index} ({run.get('timestamp', '')} - W{run.get('window_size', '')})"
+        if isinstance(summary, pd.DataFrame) and not summary.empty:
+            for row in summary.itertuples():
+                comparison_rows.append(
+                    {
+                        "Session Run": run_label,
+                        "Window Size": run.get("window_size"),
+                        "Algorithm": getattr(row, "algorithm", "N/A"),
+                        "Accuracy Mean": getattr(row, "accuracy_mean", None),
+                        "Macro F1 Mean": getattr(row, "macro_f1_mean", None),
+                        "Macro F1 (95% CI)": getattr(row, "macro_f1_95ci", "N/A"),
+                        "Top-k Accuracy": getattr(row, "top_k_accuracy_mean", None),
+                        "Loss Mean": getattr(row, "loss_mean", None),
+                        "Training Time (s)": getattr(row, "training_time_seconds_mean", None),
+                    }
+                )
+        else:
+            comparison_rows.append(
+                {
+                    "Session Run": run_label,
+                    "Window Size": run.get("window_size"),
+                    "Algorithm": run.get("algorithms", "N/A"),
+                    "Accuracy Mean": None,
+                    "Macro F1 Mean": None,
+                    "Macro F1 (95% CI)": "N/A",
+                    "Top-k Accuracy": None,
+                    "Loss Mean": None,
+                    "Training Time (s)": None,
+                }
+            )
+
+
+    comparison_df = pd.DataFrame(comparison_rows)
+    compact_dataframe(comparison_df, height=340)
+
+    if not comparison_df.empty and "Macro F1 Mean" in comparison_df.columns:
+        pivot_df = comparison_df.dropna(subset=["Macro F1 Mean"]).pivot(
+            index="Session Run", columns="Algorithm", values="Macro F1 Mean"
+        )
+        if not pivot_df.empty:
+            st.markdown("#### Macro F1 score comparison across session runs")
+            st.bar_chart(pivot_df)
+
+    if st.button("Clear session run history", key="clear_session_history_btn"):
+        clear_session_run_history(st.session_state)
+        st.rerun()
+
 
 
 def _implemented_metrics_table() -> pd.DataFrame:
@@ -190,11 +261,12 @@ def render() -> None:
         with st.expander("Review recorded errors", expanded=False):
             compact_dataframe(pd.DataFrame(errors), height=260)
 
-    fold_tab, summary_tab, history_tab = st.tabs(
+    fold_tab, summary_tab, history_tab, session_tab = st.tabs(
         [
             "Fold-level results",
             "Algorithm comparison",
             "Neural histories",
+            "Session multi-run comparison",
         ]
     )
 
@@ -207,9 +279,63 @@ def render() -> None:
         compact_dataframe(fold_results, height=420)
 
     with summary_tab:
-        st.markdown("### Per-algorithm descriptive summary")
+        st.markdown("### Per-algorithm descriptive summary & confidence intervals")
         if has_summary:
-            compact_dataframe(summary_results, height=320)
+            c_conf1, c_conf2 = st.columns([2, 2])
+            with c_conf1:
+                selected_ci_level = st.selectbox(
+                    "Confidence Level for Intervals",
+                    options=[0.95, 0.90, 0.99],
+                    format_func=lambda v: f"{int(v*100)}% Confidence Interval (alpha = {1-v:.2f})",
+                    key="eval_ci_level_select",
+                )
+            
+            # Re-aggregate summary with selected confidence level
+            from src.metrics.evaluation import aggregate_algorithm_summary
+            active_summary = aggregate_algorithm_summary(fold_results, confidence_level=selected_ci_level)
+            
+            compact_dataframe(active_summary, height=300)
+
+            ci_cols = [col for col in active_summary.columns if col.endswith("_95ci") or col.endswith("_ci_display")]
+            if ci_cols:
+                pct_str = f"{int(selected_ci_level * 100)}%"
+                st.markdown(f"#### {pct_str} Confidence Intervals (Mean ± {pct_str} CI Margin)")
+                ci_display_df = active_summary[["algorithm", "folds_completed"] + [col for col in ["accuracy_ci_display", "macro_f1_ci_display", "top_k_accuracy_ci_display", "loss_ci_display"] if col in active_summary.columns]].rename(
+                    columns={
+                        "accuracy_ci_display": f"Accuracy ({pct_str} CI)",
+                        "macro_f1_ci_display": f"Macro F1 ({pct_str} CI)",
+                        "top_k_accuracy_ci_display": f"Top-k Accuracy ({pct_str} CI)",
+                        "loss_ci_display": f"Loss ({pct_str} CI)",
+                    }
+                )
+                compact_dataframe(ci_display_df, height=180)
+
+            # Best Performing Model Analysis for Thesis Defense
+            if "macro_f1_mean" in active_summary.columns:
+                best_row = active_summary.sort_values("macro_f1_mean", ascending=False).iloc[0]
+                best_alg = best_row["algorithm"]
+                best_f1 = best_row["macro_f1_mean"]
+                best_f1_ci = best_row.get("macro_f1_ci_display", f"{best_f1:.4f}")
+                best_acc = best_row.get("accuracy_mean", 0.0)
+
+                st.success(
+                    f"**Best Performing Model under Low-Resource Condition**: **{best_alg}** "
+                    f"achieved the highest Mean Macro F1 score of **{best_f1:.4f}** ({pct_str} CI: `{best_f1_ci}`) "
+                    f"and Mean Accuracy of **{best_acc:.2%}** across all 5 held-out LORO folds."
+                )
+
+            # Statistical Significance Paired t-Test Section
+            from src.metrics.evaluation import paired_ttest_comparison
+            ttest_df = paired_ttest_comparison(fold_results, metric="macro_f1")
+            if not ttest_df.empty:
+                st.markdown("#### Statistical Significance Analysis (Paired t-Test on LORO Folds)")
+                st.caption(
+                    "Evaluates whether performance differences between model pairs across matching held-out "
+                    "recording folds are statistically significant (p < 0.05)."
+                )
+                compact_dataframe(ttest_df, height=180)
+
+
 
             comparable_metrics = [
                 column
@@ -249,8 +375,13 @@ def render() -> None:
             "condition rather than broad generalization to all Sadanga Gangsa performance."
         )
 
+
     with history_tab:
         _render_loss_histories(training_history)
+
+    with session_tab:
+        _render_session_comparison()
+
 
     with st.expander("How the recorded metrics are interpreted", expanded=False):
         st.caption(

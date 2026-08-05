@@ -153,8 +153,11 @@ def negative_log_loss(
     return float(-np.mean(np.log(np.clip(true_probabilities, epsilon, 1.0))))
 
 
-def aggregate_algorithm_summary(fold_results: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate real fold results into per-algorithm mean and sample-SD columns."""
+def aggregate_algorithm_summary(
+    fold_results: pd.DataFrame,
+    confidence_level: float = 0.95,
+) -> pd.DataFrame:
+    """Aggregate real fold results into per-algorithm mean, SD, and Confidence Interval columns."""
     if not isinstance(fold_results, pd.DataFrame):
         raise TypeError("fold_results must be a pandas DataFrame.")
     if "algorithm" not in fold_results.columns:
@@ -174,6 +177,22 @@ def aggregate_algorithm_summary(fold_results: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(columns=output_columns)
 
     rows: list[dict[str, object]] = []
+
+    # Student's t critical values for two-tailed confidence levels
+    t_tables = {
+        0.90: {1: 6.314, 2: 2.920, 3: 2.353, 4: 2.132, 5: 2.015, 6: 1.943, 7: 1.895, 8: 1.860, 9: 1.833, 10: 1.812},
+        0.95: {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228},
+        0.99: {1: 63.657, 2: 9.925, 3: 5.841, 4: 4.604, 5: 4.032, 6: 3.707, 7: 3.499, 8: 3.355, 9: 3.250, 10: 3.169},
+    }
+    target_level = 0.95
+    if abs(confidence_level - 0.90) < 0.02:
+        target_level = 0.90
+    elif abs(confidence_level - 0.99) < 0.005:
+        target_level = 0.99
+    
+    t_table = t_tables.get(target_level, t_tables[0.95])
+    ci_label_pct = f"{int(target_level * 100)}%"
+
     for algorithm, algorithm_results in completed.groupby("algorithm", sort=False):
         folds_completed = (
             int(algorithm_results["fold"].nunique())
@@ -185,11 +204,103 @@ def aggregate_algorithm_summary(fold_results: pd.DataFrame) -> pd.DataFrame:
             "folds_completed": folds_completed,
         }
         for metric in present_metrics:
-            values = pd.to_numeric(algorithm_results[metric], errors="coerce")
-            row[f"{metric}_mean"] = float(values.mean()) if values.notna().any() else np.nan
-            row[f"{metric}_std"] = (
-                float(values.std(ddof=1)) if values.notna().sum() > 1 else np.nan
-            )
+            values = pd.to_numeric(algorithm_results[metric], errors="coerce").dropna()
+            n_samples = len(values)
+            mean_val = float(values.mean()) if n_samples > 0 else np.nan
+            std_val = float(values.std(ddof=1)) if n_samples > 1 else np.nan
+            
+            row[f"{metric}_mean"] = mean_val
+            row[f"{metric}_std"] = std_val
+
+            if n_samples > 1 and not np.isnan(std_val):
+                t_crit = t_table.get(n_samples - 1, 1.96)
+                margin = float(t_crit * (std_val / np.sqrt(n_samples)))
+                row[f"{metric}_ci_margin"] = margin
+                row[f"{metric}_ci_lower"] = mean_val - margin
+                row[f"{metric}_ci_upper"] = mean_val + margin
+                row[f"{metric}_95ci"] = f"{mean_val:.4f} ± {margin:.4f}"
+                row[f"{metric}_ci_display"] = f"{mean_val:.4f} ± {margin:.4f} ({ci_label_pct} CI)"
+            else:
+                row[f"{metric}_ci_margin"] = np.nan
+                row[f"{metric}_ci_lower"] = np.nan
+                row[f"{metric}_ci_upper"] = np.nan
+                row[f"{metric}_95ci"] = f"{mean_val:.4f}" if not np.isnan(mean_val) else "N/A"
+                row[f"{metric}_ci_display"] = f"{mean_val:.4f}" if not np.isnan(mean_val) else "N/A"
+
         rows.append(row)
 
-    return pd.DataFrame(rows, columns=output_columns)
+    return pd.DataFrame(rows, columns=output_columns + [col for col in rows[0] if col not in output_columns])
+
+
+def paired_ttest_comparison(
+    fold_results: pd.DataFrame,
+    metric: str = "macro_f1",
+) -> pd.DataFrame:
+    """Compute paired t-test statistics comparing all algorithm pairs across matching LORO folds."""
+
+    if not isinstance(fold_results, pd.DataFrame) or fold_results.empty:
+        return pd.DataFrame()
+    if not {"algorithm", "test_group", metric}.issubset(fold_results.columns):
+        return pd.DataFrame()
+
+    algorithms = fold_results["algorithm"].unique().tolist()
+    if len(algorithms) < 2:
+        return pd.DataFrame()
+
+    pivot = fold_results.pivot(index="test_group", columns="algorithm", values=metric).dropna()
+    if len(pivot) < 2:
+        return pd.DataFrame()
+
+    rows = []
+    for i in range(len(algorithms)):
+        for j in range(i + 1, len(algorithms)):
+            alg_a = algorithms[i]
+            alg_b = algorithms[j]
+            if alg_a not in pivot.columns or alg_b not in pivot.columns:
+                continue
+
+            vals_a = pivot[alg_a].values
+            vals_b = pivot[alg_b].values
+            diff = vals_a - vals_b
+            mean_diff = float(np.mean(diff))
+            std_diff = float(np.std(diff, ddof=1)) if len(diff) > 1 else 0.0
+            n = len(diff)
+            se_diff = std_diff / np.sqrt(n) if n > 0 else 0.0
+            t_stat = mean_diff / se_diff if se_diff > 0 else 0.0
+
+            abs_t = abs(t_stat)
+            if abs_t >= 4.604:
+                p_text = "p < 0.01 (**)"
+                is_sig = True
+            elif abs_t >= 2.776:
+                p_text = "p < 0.05 (*)"
+                is_sig = True
+            elif abs_t >= 2.132:
+                p_text = "p < 0.10"
+                is_sig = False
+            else:
+                p_text = "p > 0.10 (ns)"
+                is_sig = False
+
+            higher_alg = alg_a if mean_diff > 0 else alg_b
+
+            rows.append(
+                {
+                    "Model Pair": f"{alg_a} vs {alg_b}",
+                    "Metric": metric,
+                    "Mean Difference": round(mean_diff, 4),
+                    "t-Statistic": round(t_stat, 4),
+                    "p-Value Range": p_text,
+                    "Statistically Significant (p < 0.05)": "Yes (*)" if is_sig else "No (Comparable)",
+                    "Finding": (
+                        f"{higher_alg} is significantly better"
+                        if is_sig
+                        else f"{higher_alg} has slight edge (comparable)"
+                    ),
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+

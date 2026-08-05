@@ -70,7 +70,9 @@ def _defaults() -> dict[str, Any]:
         "generated_sequences": None,
         "sample_bank_validated": False,
         "sample_files_detected": False,
+        "session_run_history": [],
     }
+
 
 
 def initialize_session_state(state: Any) -> None:
@@ -137,6 +139,50 @@ def clear_audio_state(state: Any) -> None:
 
     state["sample_bank_validated"] = False
     state["sample_files_detected"] = False
+
+
+def record_session_run(
+    state: Any,
+    run_id: str,
+    fold_results: pd.DataFrame,
+    summary_results: pd.DataFrame | None,
+    config: Any,
+) -> None:
+    """Record a completed evaluation run into the active session history."""
+
+    if "session_run_history" not in state or state["session_run_history"] is None:
+        state["session_run_history"] = []
+
+    from datetime import datetime
+
+    algorithms = (
+        list(fold_results["algorithm"].unique())
+        if isinstance(fold_results, pd.DataFrame) and "algorithm" in fold_results
+        else []
+    )
+    fold_count = (
+        int(fold_results["fold"].nunique())
+        if isinstance(fold_results, pd.DataFrame) and "fold" in fold_results
+        else 0
+    )
+
+    run_entry = {
+        "run_id": run_id,
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
+        "window_size": getattr(config, "window_size", 3),
+        "markov_order": getattr(config, "markov_order", 3),
+        "algorithms": ", ".join(algorithms),
+        "fold_count": fold_count,
+        "summary_results": summary_results.copy() if isinstance(summary_results, pd.DataFrame) else None,
+        "fold_results": fold_results.copy() if isinstance(fold_results, pd.DataFrame) else None,
+    }
+    state["session_run_history"].append(run_entry)
+
+
+def clear_session_run_history(state: Any) -> None:
+    """Clear recorded multi-run session history."""
+
+    state["session_run_history"] = []
 
 
 def prepared_group_ids(state: Any) -> list[str]:
