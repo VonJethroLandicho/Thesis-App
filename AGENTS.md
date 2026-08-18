@@ -1,862 +1,590 @@
-# AGENTS.md — Thesis System Context for Codex
+# AGENTS.md — Thesis App Instructions for Codex
 
-## 1. Project Identity
+## 1. Scope
 
-This project is a local Streamlit research application for the BSCS thesis:
+This file lives in the `thesis_app/` repository root and governs work in `thesis_system/` unless a more specific instruction file is added later.
+
+The project is a local Streamlit research application for the BSCS thesis:
 
 **Comparative Analysis of Markov Chain, GRU, and LSTM Algorithms for Low-Resource Sadanga Gangsa-Based Rhythmic Event Sequence Generation**
 
-The system is a thesis/research tool. It is not a commercial music generator and it is not meant to claim cultural authenticity.
+Read this file and `UX_DESIGN_SPEC.md` before changing the application.
 
-The main purpose of the app is to support a controlled algorithm comparison among:
+## 2. Non-negotiable research framing
 
-1. Markov Chain / N-gram
-2. GRU
-3. LSTM
+The app is a thesis/research tool, not a commercial music generator.
 
-The app should focus on **token-based rhythmic-event sequence modeling**, not raw-audio learning.
-
----
-
-## 2. Main Thesis Framing
-
-Use careful, defense-safe wording throughout the app.
-
-Correct terms:
+Use these concepts accurately:
 
 - Sadanga Gangsa-based rhythmic-event sequences
 - performance-derived rhythmic-event dataset
 - verified rhythmic-event dataset
-- generated rhythmic-event token sequences
+- generated rhythmic-event token sequence
 - low-resource rhythmic-event sequence modeling
-- sample-rendered rhythmic-event simulation
+- sample-rendered research simulation / sound preview
 
-Avoid these claims:
+Do not claim:
 
-- Do not claim the system generates authentic Sadanga Gangsa music.
-- Do not claim the system recreates traditional Sadanga Gangsa performance.
-- Do not claim the system represents the full Sadanga/Sinadanga tradition.
-- Do not claim the system identifies exact gong identities unless the dataset explicitly supports it.
-- Do not describe the rhythmic tokens as N1-N9 gong labels.
-- Do not say the models train on raw audio.
-- Do not say the isolated strike WAV files are used for algorithm training.
-
-The study compares algorithm behavior under a low-resource rhythmic-event sequence condition.
+- that generated output is authentic Sadanga Gangsa music;
+- that the system recreates a traditional performance;
+- that the system represents the whole Sadanga/Sinadanga tradition;
+- that rhythmic tokens are exact gong or pitch identities;
+- that the models train on raw audio;
+- that the sound-bank WAV files are used for algorithm training.
 
 Defense-safe thesis claim:
 
 > This study compares Markov Chain/N-gram, GRU, and LSTM for low-resource Sadanga Gangsa-based rhythmic-event sequence modeling.
 
----
+## 3. Product goal
 
-## 3. Current App Identity
+The interface must behave like a guided research workflow, not a flat website menu.
 
-The Streamlit app is a local Python-based research application.
+There are two user goals:
 
-This file lives at the workspace root and governs the `thesis_system/`
-application. Current project structure:
+### Workflow A — Compare Algorithms
+
+This is the recommended and required first workflow.
+
+1. Prepare Data
+2. Choose Settings
+3. Train & Test
+4. Compare Results
+5. Save Results
+
+### Workflow B — Generate & Listen
+
+This workflow is locked until the requested algorithm comparison is genuinely complete.
+
+1. Choose Algorithm
+2. Train Final Model
+3. Generate Sequence
+4. Prepare Samples
+5. Create & Listen
+6. Save Output
+
+Do not restore the old top navigation:
+
+`Overview | Data Intake | Protocol | Training | Evaluation | Generation | Audio | Reports`
+
+Do not restore a seven/eight-page menu-like experience.
+
+## 4. UX language rule
+
+Visible UI text must be understandable to a non-technical user.
+
+Use plain language for:
+
+- page/step names;
+- buttons;
+- status messages;
+- warnings;
+- empty states;
+- first-level descriptions.
+
+Keep exact research/ML terminology in:
+
+- tooltips;
+- `Technical details` expanders;
+- metric guides;
+- downloadable protocol/settings summaries;
+- thesis-specific explanatory text where precision is necessary.
+
+Examples:
+
+Prefer `Train & Test` over `Formal Model-Fold Execution`.
+
+Prefer `Prepare Data` over `Verified Event Dataset Intake`.
+
+Prefer `Generate a Rhythm Sequence` over `Bounded Event-Sequence Generation`.
+
+Prefer `Sound Preview` over `Sample-Rendered Rhythmic-Event Simulation` in primary UI copy, while keeping the precise term in technical detail.
+
+## 5. Current UI architecture
+
+Use Streamlit's modern multipage router:
+
+- `st.Page`
+- `st.navigation(..., position="hidden")`
+- `st.switch_page(...)`
+
+`app.py` is the shared application frame and router.
+
+The custom sidebar stepper is the visible navigation system.
+
+Do not reintroduce manual `import_module` page switching or a row of equal top-navigation buttons.
+
+Current screen paths:
 
 ```text
-thesis_system/
-  app.py
-  README.md
-  requirements.txt
-  requirements-neural-cpu.txt
-  requirements-dev.txt
-  pytest.ini
-  src/
-    components/
-      ui.py
-    data/
-      protocol.py
-      result_schema.py
-      training_config.py
-    metrics/
-      evaluation.py
-      registry.py
-    models/
-      markov.py
-      gru.py
-      lstm.py
-      pytorch_backend.py
-      recurrent.py
-      neural_training.py
-    pages/
-      overview.py
-      data_intake.py
-      research_protocol.py
-      training_workflow.py
-      evaluation_methods.py
-      generation.py
-      audio_rendering.py
-      reports.py
-    services/
-      artifact_store.py
-      data_validation.py
-      experiment_plan.py
-      model_training.py
-      sequence_dataset.py
-      session_state.py
-    styles/
-      theme.py
-      theme.css
-  tests/
+src/screens/
+  home.py
+  compare/
+    prepare_data.py
+    settings.py
+    train_test.py
+    results.py
+    export.py
+  generate/
+    choose_model.py
+    final_training.py
+    generate_sequence.py
+    sound_samples.py
+    listen.py
+    export.py
 ```
 
-The app has the main UI pages and a real initial backend for dataset
-preparation, LORO training, predictive evaluation, and result export.
+Routing and workflow progression live in:
 
-The current priority is to keep that backend clear, reproducible, and
-defense-safe before implementing final generation.
+```text
+src/workflows/
+  routes.py
+  progress.py
+  guards.py
+```
 
-Do not redesign the whole UI unless necessary.
+Shared interface building blocks live in:
 
-Preserve the existing minimal style:
+```text
+src/components/
+  ui.py
+  navigation.py
+```
 
-grey / black / white theme
-clean academic interface
-existing page structure
-existing component style where possible
+User-facing definitions/copy live in:
 
-## 4. Current Development Status
+```text
+src/content/
+  glossary.py
+  ui_text.py
+```
 
-The app validates and prepares `verified_event_dataset.csv`, builds
-recording-level token sequences, creates true LORO folds, and runs real
-Markov Chain/N-gram, GRU, and LSTM next-event evaluation on CPU.
+Do not create another competing navigation/state architecture inside screen files.
 
-The implemented workflow is:
+## 6. Visual design direction
 
-verified_event_dataset.csv
-→ validate dataset
-→ group token sequences by recording
-→ encode event tokens
-→ create Leave-One-Recording-Out folds
-→ train/evaluate Markov Chain, GRU, and LSTM
-→ display fold-level and summary results
-→ save versioned evaluation artifacts
+Preserve the dark/navy-black + teal research-tool identity, but keep it restrained and professional.
 
-The next major implementation stage is final all-recording model training and
-16-, 32-, and 64-event token generation.
+Primary design rules:
 
-Sound rendering is not required yet.
+- wider desktop workspace;
+- strong typographic hierarchy;
+- readable body text;
+- fewer bordered cards;
+- one obvious primary action per step;
+- secondary/technical information hidden until requested;
+- compact status indicators;
+- useful empty and error states;
+- consistent spacing;
+- clear disabled/locked states;
+- accessible contrast;
+- reduced-motion support;
+- responsive behavior on smaller screens.
 
-Audio rendering should remain future/planned functionality unless specifically requested.
+Do not repeat a large hero banner on every step.
 
-## 5. Main Training Dataset
+Only Home should have the large hero treatment. Workflow pages use the compact `step_header()` pattern.
 
-The correct input file for training/evaluation is:
+Avoid decorative UI elements that do not help the research task.
 
-verified_event_dataset.csv
+## 7. Streamlit styling rules
 
-This file may be uploaded through the Streamlit app.
+Use `.streamlit/config.toml` for supported theme settings first.
 
-The minimum required columns for training are:
+Use `src/styles/theme.css` for the custom design system.
 
-group_id
-event_index
-event_token
+Load CSS through `st.html()` from `src/styles/theme.py`.
 
-Useful optional columns:
+Avoid unnecessary dependency on brittle Streamlit internal selectors. Some internal selectors are acceptable where Streamlit provides no semantic class hook, but prefer:
 
-onset_seconds
-ioi_seconds
-ioi_category
-strength_category
-onset_strength_norm
-source_id
-candidate_event_id
-clip_filename
-clip_path
+1. official theme settings;
+2. the app's own semantic classes;
+3. Streamlit widget styling only when needed.
 
-The app should validate at least the minimum required columns before allowing training.
+Do not add custom JavaScript unless a required UX behavior cannot be implemented reasonably with Streamlit.
 
-## 6. Dataset Description
+## 8. Dataset contract
 
-The dataset contains verified rhythmic events derived from five Sadanga/Sinadanga Gangsa performance recordings.
+Main comparison input:
 
-Expected recording groups:
+`verified_event_dataset.csv`
 
-PERF-001
-PERF-002
-PERF-003
-PERF-004
-PERF-005
+Minimum required fields:
 
-Expected total event count:
+- `group_id`
+- `event_index`
+- `event_token`
 
-586 rhythmic events
+Useful optional fields include:
 
-Expected group counts:
+- `onset_seconds`
+- `ioi_seconds`
+- `ioi_category`
+- `strength_category`
+- `onset_strength_norm`
+- `source_id`
+- `candidate_event_id`
+- `clip_filename`
+- `clip_path`
 
-PERF-001 = 235 events
-PERF-002 = 39 events
-PERF-003 = 34 events
-PERF-004 = 214 events
-PERF-005 = 64 events
+The UI must never expose absolute local `clip_path` values unnecessarily.
 
-The dataset is token-based.
+The current verified study profile expects five recording groups:
 
-The algorithms train on event_token sequences only.
+- PERF-001
+- PERF-002
+- PERF-003
+- PERF-004
+- PERF-005
+
+Expected total event count: 586.
+
+These counts are provenance checks, not justification for fabricating or forcing data. Unexpected values should produce warnings rather than fake corrections.
+
+## 9. Event-token meaning
+
+The algorithms train on ordered `event_token` sequences.
+
+Examples include:
+
+- START_WEAK
+- START_MEDIUM
+- START_STRONG
+- SHORT_WEAK
+- SHORT_MEDIUM
+- SHORT_STRONG
+- MEDIUM_WEAK
+- MEDIUM_MEDIUM
+- MEDIUM_STRONG
+- LONG_WEAK
+- LONG_MEDIUM
+- LONG_STRONG
+
+Interpretation:
+
+- START = first event in a recording;
+- SHORT / MEDIUM / LONG = timing-gap category;
+- WEAK / MEDIUM / STRONG = onset-strength category.
+
+These are not exact gong identities or N1-N9 labels.
+
+## 10. Data preparation rules
+
+When loading the verified dataset:
+
+1. validate required columns;
+2. exclude unusable rows in memory;
+3. retain an auditable dropped-row report;
+4. sort by `group_id` and `event_index`;
+5. keep each recording as a separate sequence;
+6. build a deterministic token vocabulary;
+7. preserve token-to-ID and ID-to-token mappings.
+
+Never create sequence windows across two recordings.
+
+The source CSV must not be modified by the app.
+
+## 11. Evaluation method
+
+Use Leave-One-Recording-Out (LORO) evaluation.
+
+With five recordings, one complete recording is held out per fold and the remaining recordings are used for training.
+
+Never randomly split individual event rows between training and test data.
+
+Reason: row-level splitting can leak events from the same performance into both sides of the evaluation.
+
+The task is next-event prediction:
+
+> Given a short window of previous rhythmic-event tokens, predict the next token.
+
+Supported prediction window sizes remain 3, 4, and 5, with 3 as the recommended default unless the research methodology changes.
+
+## 12. Algorithms
+
+The comparison algorithms are:
+
+1. Markov Chain / N-gram
+2. GRU
+3. LSTM
+
+### Markov Chain
+
+Keep it as the interpretable baseline.
+
+- order 1 or 2;
+- additive smoothing;
+- unigram fallback;
+- no epochs;
+- no neural loss history.
+
+### GRU / LSTM
+
+Keep the neural models compact because the dataset is small.
+
+Default/recommended ranges remain approximately:
+
+- embedding dimension: 8 or 16;
+- hidden units: 16 or 32;
+- dropout: 0.2 to 0.4;
+- batch size: 8 or 16;
+- maximum epochs: 30 to 100;
+- early stopping enabled;
+- CPU execution supported.
+
+Do not make the entire app fail if PyTorch is unavailable. Markov Chain must remain usable.
+
+## 13. Evaluation result integrity
+
+Per fold, genuine metrics may include:
+
+- accuracy;
+- macro F1;
+- top-k accuracy;
+- probability loss / cross-entropy style loss;
+- training time;
+- neural epochs completed;
+- final training and validation losses for neural runs.
+
+Never:
+
+- fabricate result rows;
+- fill failed folds with fake values;
+- hard-code accuracy/F1/loss values;
+- hide failures;
+- claim a model completed when no genuine model artifact/result exists.
+
+Poor model performance is valid thesis evidence.
+
+## 14. Evaluation gating
+
+`Generate & Listen` must stay locked unless `evaluation_run_status(state)` is genuinely complete for the currently selected algorithms and prepared recording groups.
+
+Partial results may still be viewed/exported, but they do not unlock generation.
+
+The Home screen must explain this dependency in plain language.
+
+## 15. Final-model training
+
+Final-model training is separate from LORO evaluation.
+
+After the comparison is complete, the user may choose an evaluated algorithm and train a final generation model using all verified recording groups.
+
+Do not report final-model training as another held-out evaluation.
+
+Current implementation:
+
+`src/services/generation_service.py`
+
+The final model is stored in the active Streamlit session as `final_model_artifact`.
+
+Changing the generation algorithm invalidates the final model and generated sequence, but the shared sample bank may be preserved because it is algorithm-independent.
+
+## 16. Token generation
+
+Supported bounded output lengths:
+
+- 16 events
+- 32 events
+- 64 events
+
+Generation supports:
+
+- selected final model;
+- random seed;
+- temperature;
+- top-k sampling;
+- optional valid starting token context.
+
+The generated output must mark its starting context separately from newly sampled events.
+
+Do not evaluate generated sequences mainly with prediction accuracy because there is no single correct generated continuation.
+
+## 17. Sound rendering
+
+The sound stage uses a separate performance-derived sample bank.
+
+Required metadata fields:
+
+- `sample_id`
+- `strength_category`
+- `file_name`
+- `status`
+
+Supported strength categories:
+
+- WEAK
+- MEDIUM
+- STRONG
+
+Only accepted samples should be used by the renderer.
 
 The algorithms do not train on WAV files.
 
-## 7. Event Token Meaning
+The renderer is implemented in:
 
-The event_token column contains rhythm-based labels created from measurable timing and onset-strength features.
+`src/services/audio_service.py`
 
-Example tokens:
+Important timing rule:
 
-START_WEAK
-START_MEDIUM
-START_STRONG
-SHORT_WEAK
-SHORT_MEDIUM
-SHORT_STRONG
-MEDIUM_WEAK
-MEDIUM_MEDIUM
-MEDIUM_STRONG
-LONG_WEAK
-LONG_MEDIUM
-LONG_STRONG
+- derive SHORT/MEDIUM/LONG interval values from the verified dataset's `ioi_seconds` values;
+- do not invent arbitrary timing values if the required timing data is unavailable;
+- if timing cannot be derived, block rendering and explain why.
 
-Meaning:
+Current renderer behavior:
 
-START = first event in a recording
-SHORT / MEDIUM / LONG = IOI or timing-gap category
-WEAK / MEDIUM / STRONG = onset-strength category
+- reads WAV files with SoundFile;
+- converts multichannel samples to mono;
+- resamples to 22,050 Hz when necessary;
+- selects samples by strength category using a reproducible seed;
+- places events at dataset-derived timing intervals;
+- mixes overlap;
+- safely limits the final peak;
+- emits a WAV and token-to-sample mapping log.
 
-These are rhythmic-event tokens.
+Describe the result as a sound preview or sample-rendered research simulation.
 
-They are not exact gong identity labels.
+## 18. Session state
 
-They are not N1-N9 labels.
+The compatibility/session-state facade remains:
 
-Do not describe them as exact pitch/gong classes.
+`src/services/session_state.py`
 
-## 8. Dataset Provenance and Safe Explanation
+Do not scatter new independent readiness flags across UI files when readiness can be derived from real stored objects/results.
 
-The pipeline produced candidate events from ensemble recordings. The candidate clips were reviewed for usable strike sounds. The accepted events were converted into rhythmic-event tokens using measurable timing and onset-strength features.
+Prefer selectors in `src/workflows/progress.py` for UI readiness.
 
-Safe wording:
+Important states include:
 
-The candidate events were reviewed through generated clips for usability. Accepted events were converted into rhythmic-event tokens based on IOI timing and onset-strength features.
+- prepared dataset;
+- saved test settings;
+- fold-level results;
+- algorithm summary;
+- neural training history;
+- final model artifact;
+- generated sequence;
+- sample-bank metadata and WAV bytes;
+- rendered audio and mapping log.
 
-Avoid saying:
+When an upstream dependency changes, invalidate only dependent downstream products.
 
-The model learned exact gong notes.
+## 19. Backend/UI separation
 
-Avoid saying:
+Keep screen files focused on user interaction and presentation.
 
-The system identified N1-N9 from ensemble recordings.
+Place computation in services/models/metrics.
 
-Avoid saying:
+Examples:
 
-The output is authentic Sadanga Gangsa music.
+- dataset preparation → `src/services/sequence_dataset.py`
+- LORO orchestration → `src/services/model_training.py`
+- final training/generation → `src/services/generation_service.py`
+- audio rendering → `src/services/audio_service.py`
+- artifact persistence → `src/services/artifact_store.py`
 
-## 9. Dataset Loading Rules
+Do not move algorithm logic into Streamlit screen files.
 
-When loading verified_event_dataset.csv:
+## 20. Artifact storage
 
-Validate required columns:
-group_id
-event_index
-event_token
-Remove invalid rows with missing:
-group_id
-event_index
-event_token
-Sort by:
-group_id
-event_index
-Group rows by group_id.
-Convert each recording group into a token sequence.
-
-Example:
-
-PERF-001 = START_STRONG → SHORT_MEDIUM → LONG_WEAK → ...
-PERF-002 = START_WEAK → MEDIUM_STRONG → SHORT_WEAK → ...
-Encode tokens into integer IDs.
-Preserve:
-token-to-ID mapping
-ID-to-token mapping
-## 10. Validation Method
-
-Use Leave-One-Recording-Out validation.
-
-Since there are five recording groups, create five folds:
-
-Fold 1: test PERF-001, train on PERF-002, PERF-003, PERF-004, PERF-005
-Fold 2: test PERF-002, train on PERF-001, PERF-003, PERF-004, PERF-005
-Fold 3: test PERF-003, train on PERF-001, PERF-002, PERF-004, PERF-005
-Fold 4: test PERF-004, train on PERF-001, PERF-002, PERF-003, PERF-005
-Fold 5: test PERF-005, train on PERF-001, PERF-002, PERF-003, PERF-004
-
-Do not randomly split individual rows/events across training and testing.
-
-Random row-level splitting would cause leakage because events from the same recording could appear in both train and test sets.
-
-Defense-safe explanation:
-
-Each recording was treated as a separate group. The models were trained on four recordings and tested on one unseen recording using leave-one-recording-out validation.
-
-## 11. Training Task
-
-The task is next-event prediction.
-
-Given a short window of previous rhythmic-event tokens, predict the next token.
-
-Example:
-
-Input:
-SHORT_WEAK → MEDIUM_STRONG → SHORT_MEDIUM
-
-Target:
-LONG_WEAK
-
-Use small windows because the dataset is small.
-
-Recommended window sizes:
-
-3
-4
-5
-
-Default recommended window size:
-
-3
-## 12. Window Creation
-
-For each recording sequence, create sliding windows.
-
-Example sequence:
-
-START_STRONG → SHORT_MEDIUM → MEDIUM_WEAK → LONG_STRONG → SHORT_WEAK
-
-With window size 3:
-
-Input:  START_STRONG → SHORT_MEDIUM → MEDIUM_WEAK
-Target: LONG_STRONG
-
-Input:  SHORT_MEDIUM → MEDIUM_WEAK → LONG_STRONG
-Target: SHORT_WEAK
-
-Do not create windows across different recordings.
-
-Each recording must remain a separate sequence.
-
-## 13. Algorithm 1 — Markov Chain / N-gram
-
-The Markov Chain / N-gram model is the simple interpretable baseline.
-
-It should learn transition probabilities from training sequences.
-
-Example:
-
-Given previous token(s), what token usually comes next?
-
-Implementation notes:
-
-Support N-gram order 1 or 2.
-Include unigram fallback.
-Use smoothing to avoid zero-probability issues.
-Evaluate next-token predictions on the held-out recording.
-Markov Chain does not use epochs.
-Markov Chain does not have neural training loss curves.
-Report training time and prediction metrics.
-
-Good UI explanation:
-
-The Markov Chain/N-gram baseline learns local transition probabilities between rhythmic-event tokens.
-
-## 14. Algorithm 2 — GRU
-
-The GRU model should be a small recurrent neural model for next-token prediction.
-
-Because the dataset is small, keep the model compact.
-
-Recommended settings:
-
-embedding_dim = 8 or 16
-hidden_units = 16 or 32
-dropout = 0.2 to 0.4
-batch_size = 8 or 16
-epochs = 30 to 100
-early_stopping = enabled
-window_size = 3 to 5
-
-Track:
-
-training_loss
-validation_loss
-training_accuracy if available
-validation_accuracy if available
-training_time_seconds
-epochs_completed
-
-Good UI explanation:
-
-The GRU model learns token-sequence patterns using a compact recurrent memory structure.
-
-## 15. Algorithm 3 — LSTM
-
-The LSTM model should also be small.
-
-Recommended settings:
-
-embedding_dim = 8 or 16
-hidden_units = 16 or 32
-dropout = 0.2 to 0.4
-batch_size = 8 or 16
-epochs = 30 to 100
-early_stopping = enabled
-window_size = 3 to 5
-
-LSTM may overfit because the dataset is small.
-
-The app should clearly show training/validation behavior.
-
-Good UI explanation:
-
-The LSTM model uses a recurrent memory mechanism that may capture longer token patterns, but it can overfit under a small-data condition.
-
-## 16. Dependency Handling
-
-Do not make the whole app fail if PyTorch or TensorFlow is missing.
-
-Markov Chain should work with:
-
-standard Python
-pandas
-numpy
-
-For GRU and LSTM:
-
-Use available installed libraries.
-Prefer PyTorch if already available.
-If no neural-network library is available, show a clear Streamlit warning:
-GRU/LSTM training requires PyTorch or TensorFlow.
-Markov Chain training can still run.
-
-Do not require GPU.
-
-The app should run on CPU.
-
-## 17. Metrics
-
-For each algorithm and each fold, compute:
-
-accuracy
-macro_f1
-top_k_accuracy
-cross_entropy_loss or negative_log_loss if available
-training_time_seconds
-
-For GRU and LSTM, also store:
-
-epochs_completed
-final_training_loss
-final_validation_loss
-
-A fold-level result table should include:
-
-algorithm
-fold
-test_group
-train_groups
-train_event_count
-test_event_count
-window_size
-vocabulary_size
-accuracy
-macro_f1
-top_k_accuracy
-loss
-training_time_seconds
-epochs_completed
-final_training_loss
-final_validation_loss
-
-Not every metric will apply to every algorithm.
-
-For Markov Chain, neural-specific fields may be blank or N/A.
-
-## 18. Overfitting Checks
-
-For GRU and LSTM, compare training and validation/test behavior.
-
-Signs of overfitting:
-
-training loss decreases
-validation loss increases
-training accuracy is high
-test accuracy is much lower
-
-The app should not hide poor results.
-
-Poor results are still useful because the thesis is comparative.
-
-Defense-safe explanation:
-
-Because the dataset is small, overfitting behavior is part of the comparison. The study evaluates whether the recurrent models improve prediction or simply memorize the limited training recordings.
-
-## 19. Generation
-
-After formal evaluation, final models may be trained on all five recordings.
-
-Final models are used for generation, not fold-level testing.
-
-Generation lengths:
-
-16 events
-32 events
-64 events
-
-Each algorithm should generate token sequences such as:
-
-START_STRONG → SHORT_MEDIUM → SHORT_STRONG → LONG_WEAK → ...
-
-Generation is token-based.
-
-Generated sequences do not have one correct answer, so do not evaluate them mainly using accuracy.
-
-Generation behavior metrics may include:
-
-token_diversity
-unique_token_count
-repetition_rate
-transition_validity
-distribution_similarity
-generation_stability
-
-Good UI explanation:
-
-After evaluation, final models may be trained on all verified recordings to generate Sadanga Gangsa-based rhythmic-event token sequences of selected lengths.
-
-## 20. Sound Rendering Status
-
-Sound rendering is not required in the current implementation.
-
-Current priority:
-
-training/evaluation dataset
-→ algorithm comparison
-→ generated token sequences
-
-Later priority:
-
-selected strike clips
-→ performance-derived sound bank
-→ rendered audio simulation
-
-Do not connect full audio rendering unless specifically requested.
-
-## 21. Sound Rendering Future Plan
-
-Later, sound rendering should use a separate performance-derived sample bank.
-
-The old isolated N1-N9 strike bank should not be used as the main rendering bank for the current rhythm-token method, because the current tokens are not N1-N9 labels.
-
-Future rendering plan:
-
-Generated token: SHORT_STRONG
-SHORT = timing gap
-STRONG = choose a strong strike sample
-
-Possible future sample bank structure:
-
-data/sample_bank/performance_derived/
-  WEAK/
-  MEDIUM/
-  STRONG/
-  sample_bank_metadata.csv
-
-Use one shared sample bank for all algorithms.
-
-Do not create a different sound bank per algorithm.
-
-## 22. Important Separation
-
-Training/evaluation data:
-
-verified_event_dataset.csv
-
-Sound simulation data:
-
-candidate_event_clips or selected strike WAV samples
-
-The algorithms train on token sequences only.
-
-They do not train on WAV files.
-
-## 23. Data Pipeline Context
-
-The dataset was created through a separate data pipeline.
-
-Relevant pipeline stages:
-
-01_build_inventory.py
-02_prepare_curation_review.py
-03_screen_isolated_audio.py
-04_prepare_ensemble_audio.py
-05_detect_ensemble_events.py
-06_prepare_ensemble_event_review.py
-07_build_verified_event_dataset.py
-
-Step 07 outputs:
-
-data/event_review/ensemble_event_review_completed.csv
-data/verified_events/verified_event_dataset.csv
-data/verified_events/tokenization_summary.csv
-
-For the Streamlit app, the main input is:
-
-verified_event_dataset.csv
-
-The app does not need to rerun the data pipeline unless specifically requested.
-
-## 24. Expected App Behavior
-
-The Streamlit app should allow the user to:
-
-Upload verified_event_dataset.csv.
-Validate required columns.
-Show dataset summary.
-Show token distribution.
-Show recording group counts.
-Configure algorithm options.
-Configure window size.
-Run Leave-One-Recording-Out evaluation.
-Train/evaluate Markov Chain, GRU, and LSTM.
-Show fold-level results.
-Show average results per algorithm.
-Show GRU/LSTM loss curves if implemented.
-Train final models on all recordings after evaluation.
-Generate 16-, 32-, and 64-event token sequences.
-Export result tables and generated sequences as CSV.
-## 25. Page Responsibilities
-data_intake.py
-
-Should handle:
-
-dataset upload
-required-column validation
-dataset preview
-dataset summary
-group count summary
-token distribution summary
-training_workflow.py
-
-Should handle:
-
-algorithm selection
-training configuration
-window size
-Leave-One-Recording-Out execution
-fold-level result display
-training status
-evaluation_methods.py
-
-Should handle:
-
-metric explanations
-results summary
-algorithm comparison tables
-optional plots
-generation.py
-
-Should handle:
-
-final model training status
-sequence length selection
-temperature/top-k/top-p if implemented
-generated token sequence display
-export generated sequences
-audio_rendering.py
-
-Keep as planned/future functionality unless specifically requested.
-
-reports.py
-
-Should eventually show/export:
-
-dataset summary
-training results
-evaluation tables
-generation outputs
-## 26. Recommended Backend Modules
-
-Prefer adding backend service modules instead of placing all logic inside page files.
-
-Possible service files:
-
-src/services/sequence_dataset.py
-src/services/model_training.py
-src/services/generation_service.py
-
-Possible metric files:
-
-src/metrics/evaluation.py
-src/metrics/generation_metrics.py
-
-Suggested responsibilities:
-
-sequence_dataset.py
-= loading, validation, grouping, encoding, folds, windows
-
-model_training.py
-= Markov, GRU, LSTM training/evaluation
-
-generation_service.py
-= final model training and token sequence generation
-
-evaluation.py
-= accuracy, macro F1, top-k accuracy, loss
-
-generation_metrics.py
-= diversity, repetition, transition validity
-## 27. Recommended Implementation Order
-
-Implement in this order:
-
-Dataset loading and validation.
-Dataset summary.
-Grouping by group_id.
-Token encoding.
-Leave-One-Recording-Out fold creation.
-Window creation for next-event prediction.
-Markov Chain training/evaluation.
-GRU training/evaluation.
-LSTM training/evaluation.
-Fold-level result table.
-Summary result table.
-Final model training.
-Token sequence generation.
-Export outputs.
-
-Do not implement audio rendering yet unless explicitly requested.
-
-## 28. Expected Training Output Files
-
-Each evaluation with at least one genuine fold result is saved in its own run
-folder:
+Evaluation outputs continue to use versioned run folders under:
 
 ```text
-results/
-  evaluation/
-    runs/
-      <run_id>/
-        fold_level_results.csv
-        algorithm_summary.csv
-        training_history.csv
-        training_config.json
-        manifest.json
-    latest_run.json
+results/evaluation/runs/<run_id>/
 ```
 
-Optional files are present only when the run produced their real content.
-The manifest records complete/partial status, requested versus completed jobs,
-errors, and compact dataset provenance without copying the source CSV. Final
-generation-model artifacts will use separate generation/model locations when
-that stage is implemented.
+Do not overwrite previous evaluation runs silently.
 
-Create required folders safely and do not crash if they do not exist.
+Do not copy the user's source dataset into result folders unless explicitly required by the research design.
 
-## 29. Coding Rules for Codex
+Downloads shown by the UI must contain genuine current-session content.
 
-Before editing files:
+## 21. Testing
 
-Read this AGENTS.md.
-Inspect the existing project structure.
-Summarize which files will be modified or created.
-Do not edit until the user approves, unless the user already explicitly asked for direct editing.
-Preserve the existing UI style.
-Avoid unnecessary redesign.
-Avoid removing existing helper functions unless they are truly unused.
-Do not modify __pycache__ files.
-Do not delete current pages.
-Prefer backend service modules for training logic.
-Keep page files focused on UI.
-Keep code readable and defense-friendly.
-Add comments where thesis logic needs explanation.
-Keep the app runnable even if GRU/LSTM dependencies are missing.
-Never silently fake metrics or model results.
-## 30. Result Integrity Rules
+Preserve and extend pytest coverage.
 
-Do not fabricate training results.
+Most tests must remain self-contained and use synthetic data.
 
-Do not hard-code fake accuracy, loss, F1-score, or generation results.
+Use:
 
-If a model cannot train, show a clear message.
+```powershell
+python -m pytest -m "not integration"
+```
 
-If a metric cannot be computed, show N/A or an explanatory warning.
+The authoritative verified-dataset integration test expects:
 
-If the dataset is too small for a chosen setting, warn the user and suggest smaller settings.
+```text
+../data_pipeline/data/verified_events/verified_event_dataset.csv
+```
 
-The app should be honest about limitations.
+Do not change that external dataset as part of UI work.
 
-## 31. Defense-Safe UI Text
+When Streamlit is installed, navigation/startup tests should verify that page scripts and optional neural modules are not eagerly imported.
 
-Use this explanation for dataset:
+New backend behavior must receive tests where practical.
 
-The uploaded dataset contains verified performance-derived rhythmic events converted into token sequences. Each recording is treated as a separate group for leave-one-recording-out validation.
+Existing generation and audio tests verify real Markov generation, deterministic sampling, dataset-derived timing, and valid WAV output.
 
-Use this explanation for training:
+## 22. Dependency rules
 
-The models are trained for next-event prediction. Given a short sequence of previous rhythmic-event tokens, each model predicts the next token.
+Core requirements are in `requirements.txt`.
 
-Use this explanation for validation:
+PyTorch remains optional and CPU-specific through `requirements-neural-cpu.txt`.
 
-Leave-one-recording-out validation holds out one complete performance recording for testing while training on the remaining recordings. This reduces leakage between training and testing data.
+Do not make CUDA/GPU mandatory.
 
-Use this explanation for generation:
+SoundFile is a core dependency for the implemented sound-preview renderer.
 
-After evaluation, final models may be trained on all verified recordings to generate Sadanga Gangsa-based rhythmic-event token sequences of selected lengths.
+Do not add large dependencies without a clear need.
 
-Use this explanation for limitation:
+## 23. Root repository files
 
-Because the dataset is small and focused on five recordings, results should be interpreted as comparative insights under a low-resource condition rather than broad generalization to all Sadanga Gangsa performance.
+Keep these at `thesis_app/`, not inside `thesis_system/`:
 
-## 32. Important Non-Goals
+- `AGENTS.md`
+- `UX_DESIGN_SPEC.md`
+- `CHANGELOG_REDESIGN.md`
+- `.gitignore`
 
-Do not implement these unless specifically requested:
+The `.gitignore` should apply repository-wide.
 
-full audio rendering
-automatic cultural authenticity scoring
-N1-N9 gong identity classification
-raw audio model training
-Transformer model
-database integration
-major UI redesign
+## 24. Codex editing workflow
 
-Current non-goal:
+Before editing:
 
-Do not implement full audio rendering yet.
-## 33. Current Priority
+1. read this file;
+2. read `UX_DESIGN_SPEC.md` for UI changes;
+3. inspect the current implementation instead of assuming old filenames;
+4. identify affected backend and UI contracts;
+5. avoid unrelated rewrites.
 
-The implemented priority is:
+When editing:
 
-Keep the Streamlit app able to train and evaluate Markov Chain, GRU, and LSTM
-using `verified_event_dataset.csv` with reproducible, recording-level
-validation and genuine versioned results.
+- preserve research correctness;
+- preserve working backend behavior unless the task requires a backend change;
+- prefer shared components over repeated HTML/CSS;
+- prefer shared workflow selectors/guards over duplicated prerequisite logic;
+- keep imports lazy around optional neural backends;
+- keep code readable and defense-friendly;
+- add comments only where they explain important thesis logic, not obvious Python syntax.
 
-The current app workflow is:
+After editing:
 
-Upload verified_event_dataset.csv
-→ validate
-→ show dataset summary
-→ configure training
-→ run LORO evaluation
-→ display fold-level results
-→ display summary comparison
+1. run `python -m compileall -q thesis_system` when appropriate;
+2. run relevant pytest tests;
+3. run the Streamlit app locally and manually verify the changed workflow;
+4. report changed files and test results;
+5. never state that a runtime/UI behavior was verified if it was not actually run.
 
-Final all-recording training and token generation remain the next planned
-implementation stage. Full audio rendering remains future work.
-## 34. Final Reminder
+## 25. Do not regress to the old design
 
-The app should support this thesis statement:
+The following old instructions are superseded and must not be reintroduced:
 
-This study compares Markov Chain/N-gram, GRU, and LSTM for low-resource Sadanga Gangsa-based rhythmic-event sequence modeling.
+- “Do not redesign the whole UI.”
+- “Preserve the existing page structure.”
+- “Avoid unnecessary redesign” when it prevents the guided workflow.
+- “Major UI redesign is a non-goal.”
+- “Generation and audio should remain only decorative/planned pages.”
 
-The app should not claim:
+A major UI/workflow redesign has been explicitly requested and is now implemented.
 
-This system generates authentic Sadanga Gangsa music.
+Future work should improve this architecture rather than reverting it.

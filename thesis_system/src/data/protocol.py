@@ -64,12 +64,19 @@ EXPECTED_EVENT_CLASS_COUNT = 10
 DEFAULT_GENERATION_LENGTHS = [16, 32, 64]
 SUPPORTED_WINDOW_SIZES = [3, 4, 5]
 
-WORKFLOW_STEPS = [
-    "Data Intake",
-    "Protocol",
-    "Training",
-    "Evaluation",
-    "Generation",
-    "Audio",
-    "Reports",
+COMPARE_WORKFLOW_STEPS = [
+    "Upload & Check Data",
+    "Set Test Settings",
+    "Run Training & Testing",
+    "Review Algorithm Results",
+    "Download Research Results",
+]
+
+GENERATE_WORKFLOW_STEPS = [
+    "Choose Algorithm",
+    "Train Final Model",
+    "Generate Rhythm Sequence",
+    "Add Sound Samples",
+    "Create & Listen to Audio",
+    "Download Generated Output",
 ]

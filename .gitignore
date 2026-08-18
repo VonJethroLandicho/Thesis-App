@@ -1,31 +1,32 @@
-# Python bytecode and tool caches
+# Python bytecode / caches
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 
-# Local environments and machine-specific settings
+# Virtual environments
 .venv/
 venv/
-.env
-.env.*
-!.env.example
-.vscode/
-.idea/
+env/
 
-# Streamlit secrets must remain local
+# Streamlit secrets
 **/.streamlit/secrets.toml
 
-# Keep data-pipeline scripts, but only track CSV files under its data folder
-/data_pipeline/data/**
-!/data_pipeline/data/**/
-!/data_pipeline/data/**/*.csv
+# Generated thesis-system run artifacts
+thesis_system/results/
 
-# Runtime output is versioned by the application, not by source control
-results/
-
-# Logs and operating-system metadata
+# Local logs / temporary files
 *.log
+*.tmp
+*.temp
+
+# IDE / OS noise
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db
+Desktop.ini

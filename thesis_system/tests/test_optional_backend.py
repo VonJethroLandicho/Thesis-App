@@ -33,8 +33,11 @@ def test_startup_imports_are_lazy_and_missing_torch_is_reported() -> None:
 
         assert torch_import_attempts == []
         assert "torch" not in sys.modules
-        assert "src.pages.overview" not in sys.modules
-        assert all(isinstance(module_path, str) for module_path in app.PAGES.values())
+        from src.workflows.routes import ROUTES
+        assert "src.screens.home" not in sys.modules
+        assert "src.screens.compare.train_test" not in sys.modules
+        assert all(isinstance(route.path, str) for route in ROUTES.values())
+        assert ROUTES["home"].path.endswith("src/screens/home.py")
         assert TrainingConfig().window_size == 3
 
         import src.models

@@ -150,13 +150,13 @@ def protocol_summary_text(
         )
 
     return (
-        "Sadanga Gangsa Event Sequence System - Protocol Summary\n\n"
+        "Sadanga Gangsa System - Comparison Settings Summary\n\n"
         f"Algorithms: {algorithm_text}\n"
         "Evaluation method: Leave-one-recording-out\n"
         f"Recording groups / folds: {fold_count}\n"
         f"Held-out groups: {held_out_text}\n"
         f"{training_lines}"
         f"Default random seed: {random_seed if random_seed is not None else 'Not specified'}\n\n"
-        "Formal training and evaluation fits each selected algorithm per fold and evaluates next-event prediction "
+        "The comparison trains each selected algorithm once per held-out recording and evaluates next-event prediction "
         "on one complete held-out recording."
     )

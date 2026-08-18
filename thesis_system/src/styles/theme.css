@@ -1,485 +1,837 @@
-/* Keep the thesis prototype focused on the local app content. */
-header[data-testid="stHeader"],
-div[data-testid="stToolbar"],
-div[data-testid="stDecoration"],
-div[data-testid="stStatusWidget"],
-.stDeployButton,
-#MainMenu,
-footer {
-    visibility: hidden !important;
-    display: none !important;
-    height: 0 !important;
-}
-
-section[data-testid="stSidebar"] {
-    display: none !important;
-}
-
-.block-container {
-    padding-top: 0.9rem;
-    padding-bottom: 3rem;
-    padding-left: 2.25rem;
-    padding-right: 2.25rem;
-    max-width: 1680px;
+:root {
+  --sg-bg: #07100f;
+  --sg-panel: #0d1716;
+  --sg-panel-soft: #111d1b;
+  --sg-text: #f4f7f6;
+  --sg-muted: #a6b4b1;
+  --sg-border: rgba(209, 250, 229, 0.12);
+  --sg-border-strong: rgba(45, 212, 191, 0.34);
+  --sg-accent: #2dd4bf;
+  --sg-accent-strong: #14b8a6;
+  --sg-accent-soft: rgba(45, 212, 191, 0.10);
+  --sg-warning: #fbbf24;
+  --sg-success: #34d399;
+  --sg-danger: #fb7185;
+  --sg-radius: 16px;
 }
 
 html,
 body,
-[data-testid="stAppViewContainer"] {
-    background:
-        radial-gradient(circle at 18% 10%, rgba(20, 184, 166, 0.12), transparent 25%),
-        radial-gradient(circle at 90% 6%, rgba(59, 130, 246, 0.10), transparent 26%),
-        linear-gradient(180deg, #050505 0%, #0B0F14 44%, #060606 100%);
+[class*="css"] {
+  font-size: 16px;
 }
 
-html {
-    font-size: 18px;
+.stApp {
+  background:
+    radial-gradient(circle at 74% 4%, rgba(20, 184, 166, 0.08), transparent 24rem),
+    linear-gradient(180deg, #07100f 0%, #060b0b 100%);
+}
+
+[data-testid="stAppViewContainer"] > .main {
+  background: transparent;
+}
+
+.block-container {
+  max-width: 1380px;
+  /* Streamlit's header overlays the page, so reserve enough room for the
+     workflow control and the app's own top-bar text. */
+  padding-top: 4.25rem;
+  padding-bottom: 4rem;
+  padding-left: clamp(1.25rem, 3.5vw, 3.75rem);
+  padding-right: clamp(1.25rem, 3.5vw, 3.75rem);
+}
+
+[data-testid="stSidebar"] {
+  background: #08110f;
+  border-right: 1px solid var(--sg-border);
+}
+
+[data-testid="stSidebarContent"] {
+  padding: 1.1rem 0.85rem 1rem;
+}
+
+[data-testid="stHeader"] {
+  background: rgba(7, 16, 15, 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 h1,
 h2,
 h3,
 h4 {
-    letter-spacing: -0.025em;
-    color: #F8FAFC !important;
+  letter-spacing: -0.025em;
 }
 
 h2 {
-    font-size: 1.72rem !important;
-    margin-top: 1.35rem !important;
-    margin-bottom: 0.65rem !important;
-}
-
-h3 {
-    font-size: 1.38rem !important;
-    margin-top: 1.15rem !important;
-}
-
-h4 {
-    font-size: 1.15rem !important;
+  margin-top: 0.5rem;
 }
 
 p,
 li,
-span,
-div,
-label {
-    line-height: 1.62;
-    font-size: 1.04rem;
+[data-testid="stCaptionContainer"] {
+  line-height: 1.6;
 }
 
-label,
-[data-testid="stWidgetLabel"] p {
-    font-size: 1.03rem !important;
-    font-weight: 760 !important;
-    color: #E5E7EB !important;
+.sidebar-brand {
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #d4eeea;
+  margin: 0.25rem 0 0.75rem;
 }
 
-[data-testid="stCaptionContainer"] p {
-    font-size: 0.96rem !important;
-    color: #B6C2D1 !important;
-    line-height: 1.55 !important;
+.sidebar-group-label {
+  margin: 1.25rem 0 0.45rem;
+  padding: 0 0.25rem;
+  color: #6f8f89;
+  font-size: 0.69rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
 }
 
-[data-testid="stMarkdownContainer"] p,
-[data-testid="stMarkdownContainer"] li {
-    font-size: 1.04rem !important;
-    color: #D6DEE9;
+[data-testid="stSidebar"] div.stButton > button {
+  justify-content: flex-start;
+  min-height: 2.55rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 710;
+  padding-left: 0.75rem;
+  box-shadow: none;
 }
 
-@keyframes fadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+[data-testid="stSidebar"] div.stButton > button[kind="secondary"] {
+  background: transparent;
+  border-color: transparent;
+  color: #b9c8c5;
 }
 
-.top-shell {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.78rem 1rem;
-    margin-bottom: 0.55rem;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 18px;
-    background: rgba(12, 18, 24, 0.84);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
-    animation: fadeUp 0.25s ease-out;
+[data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
-.brand-left {
-    display: flex;
-    align-items: center;
-    gap: 0.95rem;
+[data-testid="stSidebar"] div.stButton > button[kind="primary"] {
+  background: rgba(45, 212, 191, 0.13);
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  color: #ccfbf1;
 }
 
-.brand-mark {
-    width: 42px;
-    height: 42px;
-    display: grid;
-    place-items: center;
-    border-radius: 14px;
-    color: #ECFEFF;
-    font-size: 1.05rem;
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #0F766E 0%, #14B8A6 60%, #67E8F9 100%);
-    box-shadow: 0 0 24px rgba(20, 184, 166, 0.28);
+[data-testid="stSidebar"] div.stButton > button:disabled {
+  opacity: 0.42;
 }
 
-.brand-title {
-    color: #F8FAFC;
-    font-size: 1.22rem;
-    font-weight: 850;
-    letter-spacing: -0.025em;
+.sidebar-footer {
+  margin-top: 1.35rem;
+  border-top: 1px solid var(--sg-border);
+  padding-top: 0.8rem;
 }
 
-.brand-subtitle {
-    color: #B6C2D1;
-    font-size: 0.98rem;
-    margin-top: -0.05rem;
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(45, 212, 191, 0.20);
+  border-radius: 24px;
+  padding: clamp(2rem, 4.5vw, 4.2rem);
+  margin: 0.35rem 0 1.65rem;
+  background:
+    radial-gradient(circle at 84% 28%, rgba(45, 212, 191, 0.20), transparent 20rem),
+    linear-gradient(145deg, rgba(13, 29, 27, 0.97), rgba(7, 18, 17, 0.98));
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.25);
 }
 
-.sr-only {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
+.home-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -8rem -10rem auto;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 50%;
+  border: 1px solid rgba(94, 234, 212, 0.13);
 }
 
-.app-hero {
-    position: relative;
-    overflow: hidden;
-    padding: 1.5rem 1.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 22px;
-    background:
-        linear-gradient(90deg, rgba(0, 0, 0, 0.76) 0%, rgba(0, 0, 0, 0.58) 54%, rgba(20, 184, 166, 0.10) 100%),
-        radial-gradient(circle at 80% 34%, rgba(20, 184, 166, 0.18), transparent 32%),
-        linear-gradient(135deg, #101827 0%, #050505 100%);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34);
-    margin-top: 0.7rem;
-    margin-bottom: 1rem;
-    min-height: 160px;
-    animation: fadeUp 0.28s ease-out;
+.hero-kicker,
+.step-meta,
+.workflow-eyebrow {
+  color: #72e7d6;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
-.app-hero::after {
-    content: "";
-    position: absolute;
-    width: 360px;
-    height: 360px;
-    right: -140px;
-    top: -160px;
-    border-radius: 999px;
-    background: rgba(20, 184, 166, 0.14);
-    filter: blur(10px);
+.hero-kicker {
+  font-size: clamp(0.9rem, 1.1vw, 1.05rem);
 }
 
-.hero-eyebrow {
-    position: relative;
-    z-index: 1;
-    width: fit-content;
-    color: #99F6E4;
-    font-size: 0.88rem;
-    font-weight: 850;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 0.42rem 0.72rem;
-    border: 1px solid rgba(20, 184, 166, 0.34);
-    border-radius: 999px;
-    background: rgba(20, 184, 166, 0.12);
-    margin-bottom: 0.72rem;
+.home-hero h1 {
+  max-width: 1120px;
+  margin: 0.55rem 0 0.8rem;
+  font-size: clamp(2.45rem, 5.2vw, 4.8rem);
+  line-height: 0.98;
+  color: #ffffff;
 }
 
-.hero-title {
-    position: relative;
-    z-index: 1;
-    color: #F8FAFC;
-    font-size: clamp(2.15rem, 3.6vw, 3.55rem);
-    font-weight: 900;
-    max-width: 1120px;
-    margin-bottom: 0.58rem;
-    line-height: 1.04;
-    letter-spacing: -0.055em;
+.home-hero p {
+  max-width: 900px;
+  margin: 0;
+  font-size: clamp(1.02rem, 1.45vw, 1.28rem);
+  line-height: 1.65;
+  color: #c7d5d2;
 }
 
-.hero-subtitle {
-    position: relative;
-    z-index: 1;
-    color: #D8E1EC;
-    font-size: 1.16rem;
-    max-width: 1120px;
-    line-height: 1.62;
+.step-header {
+  max-width: 900px;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.step-header h1 {
+  margin: 0.3rem 0 0.35rem;
+  font-size: clamp(2rem, 3.4vw, 3.25rem);
+  line-height: 1.06;
+  color: #fff;
+}
+
+.step-header p {
+  max-width: 820px;
+  margin: 0;
+  color: #adbfbb;
+  font-size: 1.02rem;
+}
+
+[data-testid="stProgress"] {
+  max-width: 900px;
+  margin-bottom: 1.6rem;
+}
+
+.section-heading {
+  margin: 1.75rem 0 0.8rem;
+  max-width: 900px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: #f7fbfa;
+  font-size: clamp(1.28rem, 2.2vw, 1.72rem);
+}
+
+.section-heading p {
+  margin: 0.25rem 0 0;
+  color: #91a7a2;
+  font-size: 0.95rem;
+}
+
+.workflow-card {
+  min-height: 355px;
+  padding: 1.45rem;
+  border: 1px solid var(--sg-border);
+  border-radius: 20px;
+  background: rgba(13, 23, 22, 0.72);
+}
+
+.workflow-card-recommended {
+  border-color: rgba(45, 212, 191, 0.34);
+  background: linear-gradient(145deg, rgba(15, 39, 35, 0.82), rgba(11, 23, 21, 0.76));
+  box-shadow: 0 18px 48px rgba(20, 184, 166, 0.07);
+}
+
+.workflow-card-locked {
+  opacity: 0.82;
+}
+
+.workflow-card h3 {
+  margin: 0.6rem 0 0.55rem;
+  font-size: 1.55rem;
+  color: #fff;
+}
+
+.workflow-card p {
+  color: #a8bbb7;
+  min-height: 70px;
+}
+
+.workflow-card ol {
+  margin: 0.9rem 0 0;
+  padding-left: 1.15rem;
+  color: #d6e4e1;
+}
+
+.workflow-card li {
+  padding: 0.17rem 0;
+}
+
+.workflow-badges {
+  min-height: 30px;
+  margin-top: 0.4rem;
+}
+
+.workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.workflow-badge.recommended {
+  color: #bff8ed;
+  background: rgba(45, 212, 191, 0.12);
+}
+
+.workflow-badge.locked {
+  color: #d6d3d1;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.definition-card {
+  min-height: 116px;
+  padding: 1rem 1.05rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.definition-term {
+  font-weight: 820;
+  color: #d9fffa;
+  margin-bottom: 0.35rem;
+}
+
+.definition-text {
+  color: #9eb0ac;
+  font-size: 0.93rem;
+  line-height: 1.48;
+}
+
+.metric-card {
+  min-height: 112px;
+  padding: 0.95rem 1rem;
+  border-left: 2px solid rgba(45, 212, 191, 0.42);
+  background: rgba(255, 255, 255, 0.022);
+  border-radius: 0 12px 12px 0;
+}
+
+.metric-label {
+  color: #8ea39e;
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.metric-value {
+  margin-top: 0.5rem;
+  color: #fff;
+  font-size: clamp(1.55rem, 2.4vw, 2.25rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.metric-help {
+  margin-top: 0.45rem;
+  color: #839893;
+  font-size: 0.76rem;
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.8rem 0 0.5rem;
 }
 
 .status-chip {
-    display: inline-block;
-    padding: 0.43rem 0.78rem;
-    border-radius: 999px;
-    font-size: 0.92rem;
-    font-weight: 800;
-    margin-right: 0.38rem;
-    margin-bottom: 0.42rem;
-    line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.28rem 0.58rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 770;
+  border: 1px solid transparent;
 }
 
 .status-chip.ok {
-    background: rgba(20, 184, 166, 0.13);
-    color: #CCFBF1;
-    border: 1px solid rgba(20, 184, 166, 0.30);
+  color: #bbf7d0;
+  background: rgba(52, 211, 153, 0.10);
+  border-color: rgba(52, 211, 153, 0.18);
 }
 
 .status-chip.warn {
-    background: rgba(245, 158, 11, 0.15);
-    color: #FEF3C7;
-    border: 1px solid rgba(245, 158, 11, 0.34);
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.09);
+  border-color: rgba(251, 191, 36, 0.18);
 }
 
 .status-chip.muted {
-    background: rgba(148, 163, 184, 0.11);
-    color: #CBD5E1;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #b7c3c1;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
-.io-card {
-    min-height: 148px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 18px;
-    padding: 1.05rem 1.15rem;
-    background: rgba(15, 23, 42, 0.62);
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-    animation: fadeUp 0.25s ease-out;
+.callout {
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  margin: 0.85rem 0;
+  border: 1px solid var(--sg-border);
 }
 
-.io-label {
-    color: #5EEAD4;
-    font-size: 0.84rem;
-    font-weight: 850;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    margin-bottom: 0.42rem;
+.callout-info {
+  background: rgba(45, 212, 191, 0.055);
+  border-color: rgba(45, 212, 191, 0.16);
 }
 
-.io-title {
-    color: #F8FAFC;
-    font-size: 1.22rem;
-    font-weight: 850;
-    margin-bottom: 0.46rem;
-    line-height: 1.28;
+.callout-success {
+  background: rgba(52, 211, 153, 0.06);
+  border-color: rgba(52, 211, 153, 0.17);
 }
 
-.io-body {
-    color: #D6DEE9;
-    font-size: 1.04rem;
-    line-height: 1.58;
+.callout-warning {
+  background: rgba(251, 191, 36, 0.055);
+  border-color: rgba(251, 191, 36, 0.16);
 }
 
-.empty-result {
-    border: 1px dashed rgba(148, 163, 184, 0.34);
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.38);
-    padding: 1.2rem 1.25rem;
-    color: #D6DEE9;
-    animation: fadeUp 0.25s ease-out;
+.callout-title {
+  color: #f2fbf9;
+  font-weight: 820;
+  margin-bottom: 0.2rem;
 }
 
-.empty-result-title {
-    color: #F8FAFC;
-    font-size: 1.14rem;
-    font-weight: 850;
-    margin-bottom: 0.35rem;
+.callout-body {
+  color: #a9bbb7;
+  line-height: 1.55;
+  font-size: 0.92rem;
 }
 
-.empty-result-body {
-    color: #B6C2D1;
-    font-size: 1.03rem;
-    line-height: 1.55;
+.empty-state {
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.4rem;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.018);
 }
 
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    border-color: rgba(255, 255, 255, 0.12) !important;
-    background: rgba(15, 23, 42, 0.62) !important;
-    border-radius: 18px !important;
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-    animation: fadeUp 0.25s ease-out;
-    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+.empty-title {
+  color: #f3f8f7;
+  font-size: 1.03rem;
+  font-weight: 800;
 }
 
-div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-    border-color: rgba(20, 184, 166, 0.26) !important;
-    box-shadow: 0 20px 52px rgba(20, 184, 166, 0.08);
+.empty-body {
+  max-width: 760px;
+  margin-top: 0.3rem;
+  color: #91a39f;
 }
 
-div[data-testid="stDataFrame"] {
-    border-radius: 16px;
-    overflow: hidden;
-    animation: fadeUp 0.25s ease-out;
+.empty-hint {
+  margin-top: 0.7rem;
+  color: #6ee7d2;
+  font-size: 0.82rem;
+  font-weight: 730;
 }
 
-div.stButton > button {
-    border-radius: 14px !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    background: rgba(255, 255, 255, 0.07) !important;
-    color: #EAF2F8 !important;
-    font-weight: 820 !important;
-    min-height: 3.1rem;
-    font-size: 1.02rem !important;
-    line-height: 1.25 !important;
-    white-space: normal !important;
-    transition: all 0.15s ease-in-out;
+.step-actions-separator {
+  height: 1px;
+  background: var(--sg-border);
+  margin: 2rem 0 1rem;
 }
 
-div.stButton > button:hover,
-div.stButton > button:focus-visible {
-    border-color: rgba(20, 184, 166, 0.62) !important;
-    color: #FFFFFF !important;
-    background: rgba(20, 184, 166, 0.18) !important;
-    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.20), 0 0 24px rgba(20, 184, 166, 0.15);
+div.stButton > button,
+[data-testid="stDownloadButton"] > button {
+  min-height: 2.85rem;
+  font-weight: 780;
+  box-shadow: none;
 }
 
-div.stButton > button[data-testid="stBaseButton-primary"],
-div.stButton > button[kind="primary"] {
-    border-color: rgba(20, 184, 166, 0.72) !important;
-    background: linear-gradient(135deg, #0F766E 0%, #0D9488 100%) !important;
-    color: #FFFFFF !important;
-    box-shadow: 0 10px 28px rgba(13, 148, 136, 0.22);
+div.stButton > button[kind="primary"],
+[data-testid="stDownloadButton"] > button[kind="primary"] {
+  background: #22c7b3;
+  color: #03100e;
+  border: 1px solid #22c7b3;
 }
 
-div.stButton > button[data-testid="stBaseButton-primary"]:hover,
-div.stButton > button[data-testid="stBaseButton-primary"]:focus-visible,
-div.stButton > button[kind="primary"]:hover,
-div.stButton > button[kind="primary"]:focus-visible {
-    border-color: #5EEAD4 !important;
-    background: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%) !important;
-    box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.24), 0 12px 32px rgba(13, 148, 136, 0.28);
+div.stButton > button[kind="primary"]:hover:not(:disabled) {
+  background: #38ddc9;
+  border-color: #38ddc9;
 }
 
-div[data-testid="stPopover"] button {
-    border-radius: 14px !important;
-    background: rgba(20, 184, 166, 0.14) !important;
-    border: 1px solid rgba(20, 184, 166, 0.38) !important;
-    color: #CCFBF1 !important;
-    font-weight: 850 !important;
-    min-height: 2.75rem !important;
-    font-size: 1rem !important;
-}
-
-div[data-testid="stAlert"] {
-    border-radius: 16px !important;
-    font-size: 1.03rem !important;
-}
-
-div[data-testid="stAlert"] p {
-    font-size: 1.03rem !important;
-    line-height: 1.55 !important;
-}
-
-input,
-textarea,
-[data-baseweb="select"] > div {
-    border-radius: 14px !important;
-    min-height: 3rem !important;
-    font-size: 1.03rem !important;
+div[data-testid="stForm"],
+div[data-testid="stExpander"] details {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.018);
 }
 
 [data-testid="stFileUploader"] {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 18px;
-    background: rgba(15, 23, 42, 0.38);
-    padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.018);
 }
 
-[data-testid="stTabs"] button p {
-    font-size: 1.02rem !important;
-    font-weight: 820 !important;
+[data-testid="stDataFrame"] {
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.stat-card-custom {
-    min-height: 132px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 18px;
-    padding: 1rem 1.05rem;
-    background: rgba(15, 23, 42, 0.62);
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    animation: fadeUp 0.25s ease-out;
+[data-testid="stAlert"] {
+  border-radius: 14px;
 }
 
-.stat-card-custom:hover {
-    border-color: rgba(20, 184, 166, 0.26);
-    box-shadow: 0 20px 52px rgba(20, 184, 166, 0.08);
+[data-baseweb="tab-list"] {
+  gap: 0.2rem;
 }
 
-.stat-card-label {
-    font-size: 0.92rem;
-    font-weight: 760;
-    color: #93C5FD;
-    line-height: 1.25;
+[data-baseweb="tab"] {
+  padding-left: 0.9rem;
+  padding-right: 0.9rem;
 }
 
-.stat-card-value {
-    font-size: clamp(2.2rem, 3.5vw, 3.2rem);
-    font-weight: 900;
-    color: #FFFFFF;
-    line-height: 1;
-    letter-spacing: -0.045em;
-    margin: 1.15rem 0 0.9rem;
-    word-break: break-word;
-}
+@media (max-width: 980px) {
+  .block-container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 
-.stat-card-help {
-    font-size: 0.92rem;
-    font-weight: 650;
-    color: #B6C2D1;
-    line-height: 1.35;
-}
+  .home-hero {
+    padding: 1.6rem;
+  }
 
-hr {
-    border-color: rgba(255, 255, 255, 0.10);
+  .workflow-card {
+    min-height: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
-@media (max-width: 900px) {
-    .block-container {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
+/* --------------------------------------------------------------------------
+   Simple guided workflow navigation v3
+   -------------------------------------------------------------------------- */
 
-    .app-hero {
-        padding: 1.35rem;
-        min-height: 180px;
-    }
+/* Give Streamlit's native sidebar controls persistent, plain-language labels.
+   stExpandSidebarButton is the collapsed control used by Streamlit 1.58; the
+   legacy selector keeps the treatment compatible with nearby releases. */
+[data-testid="stExpandSidebarButton"],
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="stSidebarCollapseButton"] button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.42rem !important;
+  width: auto !important;
+  min-width: 9.8rem !important;
+  min-height: 2.5rem !important;
+  padding: 0.48rem 0.85rem !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(45, 212, 191, 0.52) !important;
+  background: linear-gradient(145deg, rgba(13, 46, 41, 0.98), rgba(7, 25, 23, 0.98)) !important;
+  color: #dffaf5 !important;
+  font-size: 0 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22) !important;
+}
 
-    .top-shell {
-        align-items: flex-start;
-        flex-direction: column;
-    }
+[data-testid="stExpandSidebarButton"]:hover,
+[data-testid="stSidebarCollapsedControl"] button:hover,
+[data-testid="stSidebarCollapseButton"] button:hover {
+  border-color: var(--sg-accent) !important;
+  background: rgba(20, 184, 166, 0.22) !important;
+  color: #ffffff !important;
+}
 
-    .io-card {
-        min-height: auto;
-    }
+[data-testid="stExpandSidebarButton"]:focus-visible,
+[data-testid="stSidebarCollapsedControl"] button:focus-visible,
+[data-testid="stSidebarCollapseButton"] button:focus-visible {
+  outline: 3px solid rgba(94, 234, 212, 0.42) !important;
+  outline-offset: 2px !important;
+}
+
+[data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"],
+[data-testid="stSidebarCollapsedControl"] button [data-testid="stIconMaterial"],
+[data-testid="stSidebarCollapseButton"] button [data-testid="stIconMaterial"] {
+  display: inline-flex !important;
+  color: #5eead4 !important;
+  font-size: 1.1rem !important;
+}
+
+[data-testid="stSidebarCollapsedControl"] button svg,
+[data-testid="stSidebarCollapseButton"] button svg {
+  color: #5eead4 !important;
+}
+
+[data-testid="stExpandSidebarButton"]::after,
+[data-testid="stSidebarCollapsedControl"] button::after {
+  content: "Show workflow";
+  font-size: 0.82rem;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+[data-testid="stSidebarCollapseButton"] button::after {
+  content: "Hide workflow";
+  font-size: 0.82rem;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+/* Keep the collapsed control inside the Streamlit header so it does not sit on
+   top of page content. */
+[data-testid="stSidebarCollapsedControl"] {
+  top: 0.55rem !important;
+  left: 0.75rem !important;
+}
+
+[class*="st-key-workflow_nav_"] {
+  position: sticky;
+  top: 3.55rem;
+  z-index: 800;
+  margin: 0 0 1.2rem;
+  padding: 0.82rem 0.95rem 0.9rem;
+  border-bottom: 1px solid rgba(45, 212, 191, 0.24);
+  background: rgba(7, 16, 15, 0.97);
+  backdrop-filter: blur(16px);
+}
+
+.workflow-nav-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.55rem;
+  color: #d9eeea;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.workflow-nav-heading strong {
+  color: #74ead9;
+  font-size: 0.76rem;
+}
+
+.workflow-stepper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.72rem;
+}
+
+.workflow-step {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0.4rem 0.52rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  color: #7f9691;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.workflow-step-marker {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.workflow-step-label {
+  font-size: 0.75rem;
+  font-weight: 760;
+  line-height: 1.15;
+}
+
+.workflow-step.complete {
+  color: #bcefd8;
+  background: rgba(52, 211, 153, 0.04);
+}
+
+.workflow-step.complete .workflow-step-marker {
+  color: #bbf7d0;
+  background: rgba(52, 211, 153, 0.10);
+  border-color: rgba(52, 211, 153, 0.20);
+}
+
+.workflow-step.current {
+  color: #effffc;
+  border-color: rgba(45, 212, 191, 0.30);
+  background: rgba(45, 212, 191, 0.10);
+}
+
+.workflow-step.current .workflow-step-marker {
+  color: #03100e;
+  background: #2dd4bf;
+  border-color: #2dd4bf;
+}
+
+.workflow-step.available {
+  color: #c5d5d2;
+}
+
+.workflow-step.locked {
+  opacity: 0.38;
+}
+
+/* These are the only Previous/Next controls in workflow pages. */
+[class*="st-key-workflow_back_"] button,
+[class*="st-key-workflow_next_"] button {
+  min-height: 4.15rem !important;
+  border-radius: 12px !important;
+  font-size: 1rem !important;
+  font-weight: 860 !important;
+  padding: 0.7rem 1rem !important;
+}
+
+[class*="st-key-workflow_next_"] button:not(:disabled) {
+  box-shadow: 0 10px 28px rgba(20, 184, 166, 0.15) !important;
+}
+
+[class*="st-key-workflow_next_"] button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.next-step-cue {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.35rem;
+  margin-bottom: 0.18rem;
+  color: #73e7d7;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@keyframes nextStepArrow {
+  0%, 100% { transform: translateY(0); opacity: 0.72; }
+  50% { transform: translateY(5px); opacity: 1; }
+}
+
+.next-step-arrow {
+  display: inline-block;
+  font-size: 1rem;
+  animation: nextStepArrow 0.85s ease-in-out 3;
+}
+
+.workflow-final-note {
+  min-height: 4.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--sg-border);
+  color: #a9bbb7;
+  background: rgba(255, 255, 255, 0.018);
+  font-size: 0.84rem;
+}
+
+/* The page title begins immediately below the workflow controls; do not repeat
+   the workflow name and step number again. */
+.step-header {
+  max-width: 940px;
+  margin: 0.85rem 0 1.25rem;
+}
+
+.step-header h1 {
+  margin: 0 0 0.38rem;
+  font-size: clamp(2rem, 3.2vw, 3.15rem);
+  line-height: 1.05;
+  color: #fff;
+}
+
+.step-header p {
+  max-width: 840px;
+  margin: 0;
+  color: #adc0bc;
+  font-size: 1.02rem;
+}
+
+/* Make file upload feel like an obvious primary action instead of a small
+   control hidden inside a large box. */
+[data-testid="stFileUploader"] {
+  padding: 0.25rem 0;
+  background: transparent;
+}
+
+[data-testid="stFileUploaderDropzone"] {
+  min-height: 96px;
+  border: 1px solid rgba(45, 212, 191, 0.20) !important;
+  border-radius: 14px !important;
+  background: rgba(45, 212, 191, 0.025) !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button {
+  min-height: 3.1rem !important;
+  min-width: 10rem !important;
+  border-radius: 10px !important;
+  border-color: #22c7b3 !important;
+  background: #22c7b3 !important;
+  color: #03100e !important;
+  font-size: 0.95rem !important;
+  font-weight: 850 !important;
+}
+
+/* Primary task buttons inside pages should stand out, but without creating
+   another competing navigation system. */
+div.stButton > button[kind="primary"] {
+  min-height: 3.2rem;
+  font-size: 0.94rem;
+}
+
+/* Legacy helper and duplicate footer navigation are intentionally hidden. */
+[class*="st-key-next_action_wrap_"],
+.step-actions-separator {
+  display: none !important;
+}
+
+@media (max-width: 980px) {
+  [class*="st-key-workflow_nav_"] {
+    top: 3.4rem;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+  }
+
+  .workflow-stepper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  [class*="st-key-workflow_back_"] button,
+  [class*="st-key-workflow_next_"] button {
+    min-height: 3.55rem !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .workflow-stepper {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-step:not(.current):not(.complete) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .next-step-arrow {
+    animation: none !important;
+  }
 }

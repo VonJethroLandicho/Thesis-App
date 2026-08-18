@@ -68,8 +68,17 @@ def _defaults() -> dict[str, Any]:
         "protocol_saved": False,
         "evaluation_attempted": False,
         "generated_sequences": None,
+        "generation_algorithm": None,
+        "final_model_artifact": None,
+        "final_model_history": None,
+        "final_model_summary": None,
         "sample_bank_validated": False,
         "sample_files_detected": False,
+        "sample_bank_metadata": None,
+        "sample_wav_bytes": {},
+        "rendered_audio_bytes": None,
+        "audio_mapping_log": None,
+        "audio_summary": None,
         "session_run_history": [],
     }
 
@@ -125,6 +134,11 @@ def invalidate_evaluation(state: Any) -> None:
     state["artifact_paths"] = {}
     state["evaluation_attempted"] = False
     state["generated_sequences"] = None
+    state["generation_algorithm"] = None
+    state["final_model_artifact"] = None
+    state["final_model_history"] = None
+    state["final_model_summary"] = None
+    clear_audio_state(state)
 
 
 def invalidate_protocol(state: Any) -> None:
@@ -139,6 +153,19 @@ def clear_audio_state(state: Any) -> None:
 
     state["sample_bank_validated"] = False
     state["sample_files_detected"] = False
+    state["sample_bank_metadata"] = None
+    state["sample_wav_bytes"] = {}
+    state["rendered_audio_bytes"] = None
+    state["audio_mapping_log"] = None
+    state["audio_summary"] = None
+
+
+def clear_rendered_audio_state(state: Any) -> None:
+    """Clear only audio products while preserving a validated shared sample bank."""
+
+    state["rendered_audio_bytes"] = None
+    state["audio_mapping_log"] = None
+    state["audio_summary"] = None
 
 
 def record_session_run(
@@ -271,3 +298,13 @@ def has_generated_sequences(state: Any) -> bool:
 
     generated = state.get("generated_sequences")
     return isinstance(generated, pd.DataFrame) and not generated.empty
+
+
+def invalidate_generation(state: Any) -> None:
+    """Clear model/sequence outputs while preserving the shared sample bank."""
+
+    state["final_model_artifact"] = None
+    state["final_model_history"] = None
+    state["final_model_summary"] = None
+    state["generated_sequences"] = None
+    clear_rendered_audio_state(state)
