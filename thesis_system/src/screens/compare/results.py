@@ -110,10 +110,7 @@ def _algorithm_comparison(summary: pd.DataFrame, fold_results: pd.DataFrame) -> 
         empty_result("No comparable metrics", "The available result rows do not contain the expected comparison metrics.")
         return None
 
-    section_title(
-        "Compare one metric at a time",
-        "Choose a metric to see a cleaner algorithm comparison. The complete numeric records remain available below under Detailed research data.",
-    )
+    st.markdown("#### Compare by Metric")
     selected_label = st.radio(
         "Metric to compare",
         [metric.label for metric in metrics],
@@ -123,10 +120,7 @@ def _algorithm_comparison(summary: pd.DataFrame, fold_results: pd.DataFrame) -> 
     )
     metric = next(item for item in metrics if item.label == selected_label)
 
-    st.markdown(
-        f'<div class="results-metric-direction">{metric.direction}</div>',
-        unsafe_allow_html=True,
-    )
+    st.caption(f"**Direction:** {metric.direction} — {metric.purpose}")
 
     chart = summary[["algorithm", metric.summary_column]].copy()
     chart[metric.summary_column] = pd.to_numeric(chart[metric.summary_column], errors="coerce")
@@ -150,22 +144,10 @@ def _algorithm_comparison(summary: pd.DataFrame, fold_results: pd.DataFrame) -> 
         value = float(best[metric.summary_column])
         phrase = "lowest" if metric.direction.lower().startswith("lower") else "highest"
         callout(
-            f"{best['algorithm']} has the {phrase} average {metric.label.lower()} in this run",
-            f"Average {metric.label}: {value:{metric.value_format}} across the completed recording-based test rounds. "
-            "Use this together with the other metrics and the study methodology rather than treating one measure as an overall winner.",
+            f"{best['algorithm']} has the {phrase} average {metric.label.lower()}",
+            f"Average {metric.label}: **{value:{metric.value_format}}** across completed LORO folds. Evaluate alongside the other metrics rather than relying solely on one measure.",
             kind="success",
         )
-
-    left, right = st.columns([2.2, 1])
-    with left:
-        st.markdown(f'<div class="results-explainer">{metric.purpose}</div>', unsafe_allow_html=True)
-    with right:
-        with st.popover("What does this metric mean?", width="stretch"):
-            st.markdown(f"### {metric.label}")
-            st.write(metric.purpose)
-            st.markdown(f"**Direction:** {metric.direction}")
-            if metric.label == "Training Time":
-                st.caption("Faster training is useful, but prediction quality should still be considered before choosing a model.")
 
     return metric
 
@@ -174,10 +156,8 @@ def _recording_view(fold_results: pd.DataFrame, metric: MetricView | None) -> No
     if metric is None or metric.fold_column not in fold_results.columns:
         return
 
-    section_title(
-        "Performance across held-out recordings",
-        "This view shows whether the algorithms behave consistently when a different complete recording is used for testing.",
-    )
+    st.markdown("#### Performance across Held-Out Recordings")
+    st.caption("Inspects whether algorithms behave consistently when different recordings are held out for testing.")
     plot = fold_results[["algorithm", "test_group", metric.fold_column]].copy()
     plot[metric.fold_column] = pd.to_numeric(plot[metric.fold_column], errors="coerce")
     plot = plot.dropna().rename(
@@ -193,40 +173,31 @@ def _recording_view(fold_results: pd.DataFrame, metric: MetricView | None) -> No
         x="Test recording",
         y=metric.label,
         color="Algorithm",
-        height=340,
-    )
-    st.caption(
-        "Each point is one complete recording held out for testing. The lines are visual guides across the five test recordings, not a time series."
+        height=320,
     )
 
-    with st.expander("View recording-by-recording values"):
+    with st.expander("View recording-by-recording table"):
         pivot = plot.pivot_table(index="Algorithm", columns="Test recording", values=metric.label, aggfunc="first")
-        compact_dataframe(pivot.reset_index(), height=230)
+        compact_dataframe(pivot.reset_index(), height=220)
 
 
 def _neural_history(history: pd.DataFrame | None) -> None:
-    section_title(
-        "How the neural models learned",
-        "Use the learning curves to inspect whether GRU or LSTM kept improving on training data while validation behavior stopped improving.",
-    )
     if not isinstance(history, pd.DataFrame) or history.empty:
-        empty_result("No neural learning history", "This appears when a GRU or LSTM training run finishes successfully.")
         return
 
+    st.markdown("#### Neural Model Learning Curves (Loss)")
     algorithms = history["algorithm"].dropna().astype(str).drop_duplicates().tolist()
     if not algorithms:
-        empty_result("No neural learning history", "No algorithm labels were found in the saved training history.")
         return
 
-    left, right = st.columns(2)
-    with left:
+    c_left, c_right = st.columns(2)
+    with c_left:
         algorithm = st.selectbox("Neural algorithm", algorithms, key="result_history_algorithm")
     subset = history[history["algorithm"].eq(algorithm)]
     folds = sorted(pd.to_numeric(subset["fold"], errors="coerce").dropna().astype(int).unique().tolist())
     if not folds:
-        empty_result("No test-round history", "The selected algorithm has no fold-specific epoch records.")
         return
-    with right:
+    with c_right:
         fold = st.selectbox("Test round", folds, key="result_history_fold")
 
     selected = subset[pd.to_numeric(subset["fold"], errors="coerce").eq(fold)].sort_values("epoch")
@@ -238,17 +209,57 @@ def _neural_history(history: pd.DataFrame | None) -> None:
         long["Curve"] = long["Curve"].replace(
             {"training_loss": "Training loss", "validation_loss": "Validation loss"}
         )
-        st.line_chart(long, x="epoch", y="Loss", color="Curve", height=330)
+        st.line_chart(long, x="epoch", y="Loss", color="Curve", height=300)
         callout(
-            "What to look for",
-            "If training loss keeps falling while validation loss rises or stops improving, the model may be fitting the training recordings more strongly than patterns that transfer to unseen data.",
+            "What to look for in Neural Curves",
+            "If training loss keeps dropping while validation loss rises or plateaus, the model is exhibiting overfitting on the small dataset.",
             kind="info",
         )
-    else:
-        st.info("No training/validation loss columns are available for this run.")
 
-    with st.expander("View epoch-by-epoch records"):
-        compact_dataframe(selected, height=300)
+
+def _render_intro_panel():
+    st.markdown("### Introduction & Metric Guide")
+    callout(
+        "Evaluation Context",
+        "Results reflect Leave-One-Recording-Out (LORO) validation across 5 performance groups. Each algorithm is tested strictly on unseen recordings without data leakage.",
+        kind="info",
+    )
+
+    st.markdown(
+        """
+        #### Key Evaluation Metrics
+        - **Macro F1 (Primary)**: Unweighted class average across all token classes. Ensures rare tokens (like START) are equally represented.
+        - **Accuracy**: Fraction of exact matches for the next rhythmic-event token.
+        - **Top-k Accuracy**: Percentage where the true next event appears within the top-$k$ ranked candidates.
+        - **Prediction Loss**: Cross-entropy loss reflecting prediction confidence and probability quality (lower is better).
+        - **Training Time**: CPU computation time per training fold.
+        
+        #### Interpretation Note
+        Because the dataset is small (~586 events), model differences show how recurrent memory vs. Markov n-gram models perform under low-resource constraints.
+        """
+    )
+    label, kind = evaluation_status_display(st.session_state)
+    status_row([(label.replace("Evaluation", "Comparison"), kind)])
+
+
+def _render_main_results(summary: pd.DataFrame, fold_results: pd.DataFrame, history: pd.DataFrame | None, errors: list):
+    st.markdown("### Results at a Glance")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        stat_card("Algorithms", str(fold_results["algorithm"].nunique()), "Evaluated models")
+    with c2:
+        stat_card("Recordings", str(fold_results["test_group"].nunique()), "LORO folds")
+    with c3:
+        stat_card("Completed runs", str(len(fold_results)), "Model-fold results")
+    with c4:
+        stat_card("Recorded errors", str(len(errors)), "Transparent failures")
+
+    if errors:
+        st.warning("Some requested runs failed. Successful results are shown honestly; missing runs are not replaced with fake values.")
+
+    metric = _algorithm_comparison(summary, fold_results)
+    _recording_view(fold_results, metric)
+    _neural_history(history)
 
 
 step_header(
@@ -273,26 +284,20 @@ if not evaluation_has_results(st.session_state):
 
 summary = aggregate_algorithm_summary(fold_results)
 st.session_state.summary_results = summary
-label, kind = evaluation_status_display(st.session_state)
-status_row([(label.replace("Evaluation", "Comparison"), kind)])
 
-section_title("Results at a glance", "A quick check that the comparison produced the expected evidence.")
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    stat_card("Algorithms", str(fold_results["algorithm"].nunique()), "Algorithms with genuine result rows")
-with c2:
-    stat_card("Test recordings", str(fold_results["test_group"].nunique()), "Complete recordings held out for testing")
-with c3:
-    stat_card("Completed runs", str(len(fold_results)), "Algorithm × held-out recording result rows")
-with c4:
-    stat_card("Recorded errors", str(len(errors)), "Errors are kept visible instead of replaced with fake values")
+# Layout toggle to show/hide side guide and dynamically expand results space
+top_left, top_right = st.columns([3, 1.2], vertical_alignment="center")
+with top_right:
+    show_guide = st.toggle("Show Guide Panel", value=st.session_state.get("show_results_guide", True), key="show_results_guide", help="Toggle the left-side guide on or off to maximize results chart and table space.")
 
-if errors:
-    st.warning("Some requested runs failed. Successful results are shown honestly; missing runs are not replaced with fake values.")
-
-metric = _algorithm_comparison(summary, fold_results)
-_recording_view(fold_results, metric)
-_neural_history(history)
+if show_guide:
+    col_intro, col_main = st.columns([1, 1.85], gap="large")
+    with col_intro:
+        _render_intro_panel()
+    with col_main:
+        _render_main_results(summary, fold_results, history, errors)
+else:
+    _render_main_results(summary, fold_results, history, errors)
 
 section_title(
     "Detailed research data",
@@ -345,10 +350,6 @@ with st.expander("Metric guide"):
 if errors:
     with st.expander("Recorded run errors"):
         compact_dataframe(pd.DataFrame(errors), height=260)
-
-st.info(
-    "Because the dataset is small and focused on five recordings, treat these values as comparative evidence under a low-resource condition rather than broad generalization to all Sadanga Gangsa performance."
-)
 
 if evaluation_complete(st.session_state):
     st.success("The complete comparison is finished. Generate & Listen is now unlocked.")

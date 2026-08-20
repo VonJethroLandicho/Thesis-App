@@ -15,6 +15,7 @@ from src.services.model_training import run_loro_evaluation
 from src.services.session_state import evaluation_progress, evaluation_status_display, invalidate_evaluation, loro_fold_specification, record_session_run
 from src.workflows.guards import require_settings
 from src.workflows.progress import evaluation_has_results
+from src.workflows.routes import go_to
 
 
 def _config_from_session() -> TrainingConfig:
@@ -22,6 +23,37 @@ def _config_from_session() -> TrainingConfig:
     defaults = TrainingConfig()
     supported = {item.name for item in fields(TrainingConfig)}
     return TrainingConfig(**{name: saved.get(name, getattr(defaults, name)) for name in supported})
+
+
+@st.dialog("Training & Evaluation Report", width="large")
+def _show_training_result_dialog(status_type: str, completed: int, expected: int, algorithms: list[str], errors: list[dict], group_count: int):
+    if status_type == "success":
+        st.success(f"### Training & Evaluation Successful\n**{completed} of {expected}** requested model-fold runs produced genuine research results.")
+        st.markdown(
+            f"""
+            - **Evaluated Algorithms:** {', '.join(algorithms)}
+            - **Validation Strategy:** Leave-One-Recording-Out (LORO) across {group_count} performance recordings
+            - **Generated Artifacts:** Fold-level results, algorithm summaries, and training history logs saved to disk.
+            """
+        )
+        if st.button("View Comparison Results →", type="primary", width="stretch", key="popup_goto_results"):
+            st.session_state.training_just_completed = None
+            go_to("compare_results")
+    else:
+        st.error(f"### Training Completed with Warnings or Errors\n**{completed} of {expected}** runs finished successfully.")
+        if errors:
+            st.markdown("#### Recorded Errors:")
+            compact_dataframe(pd.DataFrame(errors), height=200)
+        st.caption("You may inspect partial results or adjust test settings and re-run.")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Close", key="popup_close_error", width="stretch"):
+                st.session_state.training_just_completed = None
+                st.rerun()
+        with c2:
+            if completed > 0 and st.button("View Partial Results →", type="secondary", width="stretch", key="popup_goto_partial"):
+                st.session_state.training_just_completed = None
+                go_to("compare_results")
 
 
 step_header(
@@ -41,38 +73,21 @@ config = _config_from_session()
 fold_spec = loro_fold_specification(st.session_state)
 job_table = build_job_table(algorithms, fold_spec, status="Ready", event_counts=prepared.group_counts)
 
-section_title("Before you run the comparison")
 neural_selected = any(name in {"GRU", "LSTM"} for name in algorithms)
 backend = neural_backend_status() if neural_selected else None
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    stat_card("Recordings", str(len(prepared.group_ids)), "Kept as separate groups")
-with c2:
-    stat_card("Algorithms", str(len(algorithms)), ", ".join(algorithms))
-with c3:
-    stat_card("Training runs", str(len(job_table)), "Algorithm × held-out recording")
-with c4:
-    if not neural_selected:
-        stat_card("Neural library", "Not needed", "Markov Chain can run without PyTorch")
-    elif backend and backend["available"]:
-        stat_card("Neural library", "Ready", "GRU/LSTM will run on CPU")
-    else:
-        stat_card("Neural library", "Unavailable", "Neural runs will report a clear error")
+
+# --------------------------------------------------------------------------
+# Primary Action Section (Placed at the very top for effortless navigation)
+# --------------------------------------------------------------------------
+st.markdown("### Execute Training & Evaluation")
+st.caption(f"Ready to run **{len(job_table)}** Leave-One-Recording-Out (LORO) model-fold tests across **{', '.join(algorithms)}**.")
 
 if neural_selected and backend and not backend["available"]:
     st.warning(str(backend["message"]))
 
-status_row([("Data ready", "ok"), ("Settings saved", "ok")])
-st.info("Training may take time for GRU and LSTM. Do not close the app while the comparison is running.")
+start_clicked = st.button("Start Algorithm Comparison", type="primary", width="stretch", key="run_algorithm_comparison")
 
-if not evaluation_has_results(st.session_state):
-    next_action_helper(
-        title="Start the algorithm comparison",
-        body=f"This starts {len(job_table)} real training/test runs. Each selected algorithm is trained while one complete recording is held out for testing. When genuine results are available, the Results step will unlock.",
-        key="run_comparison",
-    )
-
-if st.button("Start Algorithm Comparison", type="primary", width="stretch", key="run_algorithm_comparison"):
+if start_clicked:
     invalidate_evaluation(st.session_state)
     st.session_state.evaluation_attempted = True
     progress = st.progress(0.0, text="Preparing training runs...")
@@ -140,6 +155,7 @@ if st.button("Start Algorithm Comparison", type="primary", width="stretch", key=
                     summary_results=summary,
                     config=config,
                 )
+                st.session_state.training_just_completed = "success" if not run.errors else "failure"
             except Exception as exc:
                 st.session_state.artifact_paths = {}
                 st.session_state.training_errors.append({
@@ -150,22 +166,53 @@ if st.button("Start Algorithm Comparison", type="primary", width="stretch", key=
                     "error": str(exc),
                     "error_type": type(exc).__name__,
                 })
+                st.session_state.training_just_completed = "failure"
+        else:
+            st.session_state.training_just_completed = "failure"
+    else:
+        st.session_state.training_just_completed = "failure"
+
     progress.empty()
     message_box.empty()
     st.rerun()
 
-section_title("Latest comparison status")
-label, kind = evaluation_status_display(st.session_state)
-status_row([(label.replace("Evaluation", "Comparison"), kind)])
+# Trigger Popup Modal Dialog on completion (both success and failure)
 completed, expected = evaluation_progress(st.session_state)
+if st.session_state.get("training_just_completed") == "success":
+    st.toast("Algorithm training and evaluation completed successfully.")
+    _show_training_result_dialog("success", completed, expected, algorithms, st.session_state.training_errors, len(prepared.group_ids))
+elif st.session_state.get("training_just_completed") == "failure":
+    st.toast("Training finished with warnings or errors. Review details.")
+    _show_training_result_dialog("failure", completed, expected, algorithms, st.session_state.training_errors, len(prepared.group_ids))
+
+# --------------------------------------------------------------------------
+# Setup Overview & Status Section
+# --------------------------------------------------------------------------
+section_title("Pre-Run Overview & Status")
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    stat_card("Recordings", str(len(prepared.group_ids)), "5 performance groups")
+with c2:
+    stat_card("Algorithms", str(len(algorithms)), ", ".join(algorithms))
+with c3:
+    stat_card("Training runs", str(len(job_table)), "Algorithm × held-out recording")
+with c4:
+    if not neural_selected:
+        stat_card("Neural library", "Not needed", "Markov Chain runs on CPU")
+    elif backend and backend["available"]:
+        stat_card("Neural library", "Ready", "GRU/LSTM will run on CPU")
+    else:
+        stat_card("Neural library", "Unavailable", "PyTorch is missing")
+
+label, kind = evaluation_status_display(st.session_state)
+status_row([("Data ready", "ok"), ("Settings saved", "ok"), (label.replace("Evaluation", "Comparison"), kind)])
+
 if evaluation_has_results(st.session_state):
-    st.success(f"{completed} of {expected} requested training/test runs produced genuine results.")
+    st.success(f"**Success**: {completed} of {expected} requested training/test runs produced genuine results.")
     if st.session_state.training_errors:
         st.warning(f"{len(st.session_state.training_errors)} run or export error(s) were also recorded. Results were not filled with placeholders.")
 elif st.session_state.evaluation_attempted:
     st.error("The latest attempt produced no usable result. Review the recorded errors below.")
-else:
-    st.caption("No comparison has been run with the current dataset and settings yet.")
 
 if st.session_state.training_errors:
     with st.expander("Review recorded errors"):

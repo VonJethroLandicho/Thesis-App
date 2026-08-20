@@ -165,7 +165,10 @@ def workflow_navigation(workflow: str, step: int, total: int) -> None:
                 ):
                     go_to(next_route)
                 if not next_ready:
-                    st.caption(lock_reason or "Finish this step to continue.")
+                    st.markdown(
+                        f'<div class="workflow-next-hint">{_safe(lock_reason or "Finish this step to continue.")}</div>',
+                        unsafe_allow_html=True,
+                    )
             else:
                 st.markdown(
                     '<div class="workflow-final-note">Final step — download or save what you need here.</div>',
