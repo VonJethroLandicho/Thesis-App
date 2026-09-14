@@ -11,6 +11,8 @@ from src.workflows.progress import step_available, step_completed, step_lock_rea
 from src.workflows.routes import COMPARE_ROUTE_KEYS, GENERATE_ROUTE_KEYS, ROUTES, go_to
 
 ButtonType = Literal["primary", "secondary", "tertiary"]
+_STEP_COMPLETION_NOTICE_KEY = "step_completion_notice"
+_SCROLL_TO_READY_NEXT_KEY = "scroll_to_ready_next"
 
 
 def _safe(value: object) -> str:
@@ -50,10 +52,16 @@ def _stepper_html(workflow_key: Literal["compare", "generate"], current_step: in
         else:
             state_class = "locked"
             marker = "•"
+        flow_arrow = (
+            '<span class="workflow-step-flow-arrow" aria-hidden="true">&raquo;</span>'
+            if workflow_key == "compare"
+            else ""
+        )
         parts.append(
             f'<div class="workflow-step {state_class}">'
             f'<span class="workflow-step-marker">{_safe(marker)}</span>'
             f'<span class="workflow-step-label">{_safe(route.step_label or route.title)}</span>'
+            f"{flow_arrow}"
             f'</div>'
         )
     return '<div class="workflow-stepper">' + "".join(parts) + "</div>"
@@ -80,6 +88,103 @@ def _current_step_reason(workflow_key: Literal["compare", "generate"], step: int
             6: "This is the final generation step.",
         }
     return reasons.get(step, "Finish the current step to continue.")
+
+
+def queue_step_completion(
+    workflow_key: Literal["compare", "generate"],
+    step: int,
+    *,
+    title: str,
+    message: str,
+) -> None:
+    """Queue one genuine step-completion dialog for the next rerun."""
+
+    st.session_state[_STEP_COMPLETION_NOTICE_KEY] = {
+        "workflow": workflow_key,
+        "step": int(step),
+        "title": str(title),
+        "message": str(message),
+    }
+
+
+def return_to_ready_next() -> None:
+    """Close completion feedback and return focus to an enabled Next button."""
+
+    st.session_state[_SCROLL_TO_READY_NEXT_KEY] = True
+    st.rerun()
+
+
+def show_step_completion_dialog(
+    workflow_key: Literal["compare", "generate"], step: int
+) -> None:
+    """Show the queued success dialog only on the step that produced it."""
+
+    notice = st.session_state.get(_STEP_COMPLETION_NOTICE_KEY)
+    if not isinstance(notice, dict):
+        return
+    if notice.get("workflow") != workflow_key or notice.get("step") != int(step):
+        return
+
+    @st.dialog(
+        "Step complete",
+        dismissible=False,
+        icon=":material/check_circle:",
+    )
+    def _dialog() -> None:
+        st.success(str(notice.get("title", "Step completed successfully.")))
+        st.write(str(notice.get("message", "The next step is now available.")))
+        st.caption(
+            "The Next button is ready. Close this message to return to the workflow controls."
+        )
+        if st.button(
+            "OK",
+            type="primary",
+            width="stretch",
+            key=f"step_completion_{workflow_key}_{step}",
+        ):
+            st.session_state[_STEP_COMPLETION_NOTICE_KEY] = None
+            return_to_ready_next()
+
+    _dialog()
+
+
+def _scroll_to_ready_next_if_requested() -> None:
+    """Return the viewport and keyboard focus to the newly enabled Next button."""
+
+    if not st.session_state.pop(_SCROLL_TO_READY_NEXT_KEY, False):
+        return
+
+    # Streamlit has no native scroll-to-widget API. This narrowly scoped script
+    # runs only after the user closes a completion dialog and targets our own
+    # enabled workflow button; it does not read or transmit application data.
+    st.html(
+        """
+        <script>
+        (() => {
+          const host = window.parent?.document || document;
+          const reducedMotion = window.parent?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+          let attempts = 0;
+          const revealReadyNext = () => {
+            const button = host.querySelector('[class*="st-key-workflow_next_"] button:not(:disabled)');
+            if (!button && attempts++ < 40) {
+              window.setTimeout(revealReadyNext, 50);
+              return;
+            }
+            if (!button) return;
+            const navigation = button.closest('[class*="st-key-workflow_nav_"]') || button;
+            navigation.scrollIntoView({
+              behavior: reducedMotion ? 'auto' : 'smooth',
+              block: 'start'
+            });
+            window.setTimeout(() => button.focus({ preventScroll: true }), reducedMotion ? 0 : 450);
+          };
+          window.setTimeout(revealReadyNext, 0);
+        })();
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
+
 
 def workflow_navigation(workflow: str, step: int, total: int) -> None:
     """Render a simple sticky wizard bar above every workflow screen.
@@ -131,6 +236,7 @@ def workflow_navigation(workflow: str, step: int, total: int) -> None:
         st.markdown(_stepper_html(workflow_key, step), unsafe_allow_html=True)
 
         back_col, next_col = st.columns([1, 1.35], vertical_alignment="bottom")
+        next_hint: str | None = None
 
         with back_col:
             previous = ROUTES[previous_route]
@@ -150,13 +256,13 @@ def workflow_navigation(workflow: str, step: int, total: int) -> None:
         with next_col:
             if next_route:
                 target = ROUTES[next_route]
-                if next_ready:
-                    st.markdown(
-                        '<div class="next-step-cue"><span>Next step</span><span class="next-step-arrow">↓</span></div>',
-                        unsafe_allow_html=True,
-                    )
+                next_label = target.nav_label or target.title
                 if st.button(
-                    f"Next: {target.nav_label or target.title} →",
+                    (
+                        f"Ready — Next: {next_label} →"
+                        if next_ready
+                        else f"Next: {next_label} →"
+                    ),
                     key=f"workflow_next_{workflow_key}_{step}",
                     type="primary",
                     width="stretch",
@@ -165,15 +271,24 @@ def workflow_navigation(workflow: str, step: int, total: int) -> None:
                 ):
                     go_to(next_route)
                 if not next_ready:
-                    st.markdown(
-                        f'<div class="workflow-next-hint">{_safe(lock_reason or "Finish this step to continue.")}</div>',
-                        unsafe_allow_html=True,
-                    )
+                    next_hint = lock_reason or "Finish this step to continue."
             else:
                 st.markdown(
                     '<div class="workflow-final-note">Final step — download or save what you need here.</div>',
                     unsafe_allow_html=True,
                 )
+
+        # Keep status text in a separate row so a wrapped disabled-state hint
+        # never changes the vertical position of the Previous/Next buttons.
+        if next_hint:
+            _, hint_col = st.columns([1, 1.35])
+            with hint_col:
+                st.markdown(
+                    f'<div class="workflow-next-hint">{_safe(next_hint)}</div>',
+                    unsafe_allow_html=True,
+                )
+
+        _scroll_to_ready_next_if_requested()
 
 
 def home_hero(title: str, subtitle: str, eyebrow: str = "RESEARCH APPLICATION") -> None:
@@ -206,8 +321,8 @@ def next_action_helper(*, title: str, body: str, key: str) -> None:
     """Deprecated visual helper kept as a no-op for compatibility.
 
     The simplified UI now puts the guidance directly on the real Next button
-    through its hover help and uses one small animated arrow only when the
-    current step is complete.
+    through its hover help. The shared workflow bar supplies the ready-state
+    text, gradient, and focus behavior when the current step is complete.
     """
     return None
 

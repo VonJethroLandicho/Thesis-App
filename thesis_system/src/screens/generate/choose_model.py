@@ -3,7 +3,16 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from src.components.ui import compact_dataframe, next_action_helper, section_title, status_row, step_actions, step_header
+from src.components.ui import (
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    section_title,
+    show_step_completion_dialog,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.services.session_state import invalidate_generation
 from src.workflows.guards import require_completed_evaluation
 
@@ -15,6 +24,7 @@ step_header(
     "Choose an algorithm",
     "Use the completed comparison as evidence when choosing which algorithm will be trained one final time for sequence generation.",
 )
+show_step_completion_dialog("generate", 1)
 
 if not require_completed_evaluation():
     st.stop()
@@ -52,6 +62,12 @@ if st.button("Use This Algorithm", type="primary", width="stretch", key="choose_
     if selected != st.session_state.generation_algorithm:
         invalidate_generation(st.session_state)
     st.session_state.generation_algorithm = selected
+    queue_step_completion(
+        "generate",
+        1,
+        title="Algorithm selected",
+        message=f"{selected} was selected for generation. You can now train the final model.",
+    )
     st.rerun()
 
 if st.session_state.generation_algorithm:

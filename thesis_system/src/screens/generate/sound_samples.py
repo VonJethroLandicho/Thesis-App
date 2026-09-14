@@ -7,7 +7,17 @@ from pathlib import PurePath
 import pandas as pd
 import streamlit as st
 
-from src.components.ui import compact_dataframe, next_action_helper, section_title, stat_card, status_row, step_actions, step_header
+from src.components.ui import (
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    section_title,
+    show_step_completion_dialog,
+    stat_card,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.data.protocol import SAMPLE_BANK_COLUMN_REFERENCE
 from src.services.audio_service import infer_timing_intervals
 from src.services.data_validation import validate_sample_bank
@@ -37,6 +47,7 @@ step_header(
     "Prepare the sound samples",
     "Upload reviewed performance-derived WAV samples and a metadata file that maps each sample to WEAK, MEDIUM, or STRONG.",
 )
+show_step_completion_dialog("generate", 4)
 
 if not require_completed_evaluation():
     st.stop()
@@ -127,6 +138,15 @@ if replace:
                     st.session_state.rendered_audio_bytes = None
                     st.session_state.audio_mapping_log = None
                     st.session_state.audio_summary = None
+                    queue_step_completion(
+                        "generate",
+                        4,
+                        title="Sound sample bank ready",
+                        message=(
+                            "The accepted metadata and WAV samples passed validation. "
+                            "You can now create and listen to the sound preview."
+                        ),
+                    )
                     st.rerun()
                 else:
                     st.session_state.sample_bank_validated = False

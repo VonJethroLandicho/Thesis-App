@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+from types import SimpleNamespace
 
 from src.data.result_schema import FOLD_RESULT_COLUMNS
 from src.data.training_config import TrainingConfig
@@ -92,6 +93,35 @@ def test_markov_loro_run_returns_real_fold_metrics_and_no_history() -> None:
     ]
     assert [event["completed"] for event in terminal_events] == [1, 2, 3]
     assert all(event["total"] == 3 for event in progress_events)
+
+
+def test_training_accepts_prepared_session_data_after_module_reload() -> None:
+    """A structurally valid prepared object must survive Streamlit hot reloads."""
+
+    prepared = _prepared_dataset()
+    session_prepared = SimpleNamespace(
+        dataframe=prepared.dataframe,
+        sequences=prepared.sequences,
+        encoded_sequences=prepared.encoded_sequences,
+        token_to_id=prepared.token_to_id,
+        id_to_token=prepared.id_to_token,
+        source_row_count=prepared.source_row_count,
+        dropped_row_count=prepared.dropped_row_count,
+        dropped_rows=prepared.dropped_rows,
+        warnings=prepared.warnings,
+        group_ids=prepared.group_ids,
+        group_counts=prepared.group_counts,
+        vocabulary_size=prepared.vocabulary_size,
+    )
+
+    result = run_loro_evaluation(
+        session_prepared,
+        algorithms=["Markov Chain"],
+        config=TrainingConfig(window_size=3, markov_order=2, top_k=2),
+    )
+
+    assert result.errors == []
+    assert len(result.fold_results) == len(prepared.group_ids)
 
 
 def test_missing_pytorch_does_not_prevent_markov_folds(monkeypatch) -> None:

@@ -5,7 +5,18 @@ from dataclasses import fields
 import pandas as pd
 import streamlit as st
 
-from src.components.ui import compact_dataframe, next_action_helper, section_title, stat_card, status_row, step_actions, step_header
+from src.components.ui import (
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    return_to_ready_next,
+    section_title,
+    show_step_completion_dialog,
+    stat_card,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.data.training_config import TrainingConfig
 from src.metrics.evaluation import aggregate_algorithm_summary
 from src.models.pytorch_backend import neural_backend_status
@@ -25,35 +36,56 @@ def _config_from_session() -> TrainingConfig:
     return TrainingConfig(**{name: saved.get(name, getattr(defaults, name)) for name in supported})
 
 
-@st.dialog("Training & Evaluation Report", width="large")
-def _show_training_result_dialog(status_type: str, completed: int, expected: int, algorithms: list[str], errors: list[dict], group_count: int):
-    if status_type == "success":
-        st.success(f"### Training & Evaluation Successful\n**{completed} of {expected}** requested model-fold runs produced genuine research results.")
-        st.markdown(
-            f"""
-            - **Evaluated Algorithms:** {', '.join(algorithms)}
-            - **Validation Strategy:** Leave-One-Recording-Out (LORO) across {group_count} performance recordings
-            - **Generated Artifacts:** Fold-level results, algorithm summaries, and training history logs saved to disk.
-            """
+@st.dialog("Training & Evaluation Report", width="large", dismissible=False)
+def _show_training_failure_dialog(completed: int, expected: int, errors: list[dict]):
+    has_results = completed > 0
+    summary_message = (
+        f"### Comparison completed with recorded errors\n**{completed} of {expected}** "
+        "requested runs produced genuine results."
+        if has_results
+        else f"### Comparison could not produce results\n**0 of {expected}** requested runs finished successfully."
+    )
+    if has_results:
+        st.warning(summary_message)
+    else:
+        st.error(summary_message)
+
+    if errors:
+        st.markdown("#### Recorded Errors:")
+        errors_df = pd.DataFrame(errors)
+        compact_dataframe(errors_df, height=200)
+        st.download_button(
+            "Download Error Report (CSV)",
+            data=errors_df.to_csv(index=False).encode("utf-8"),
+            file_name="training_error_report.csv",
+            mime="text/csv",
+            width="stretch",
+            key="popup_download_training_errors",
         )
-        if st.button("View Comparison Results →", type="primary", width="stretch", key="popup_goto_results"):
+
+    if has_results:
+        st.caption(
+            "The completed result rows remain available. You may continue to review "
+            "them or adjust the settings and run the comparison again."
+        )
+    else:
+        st.caption(
+            "No genuine result row is available yet. Download the error report, close "
+            "this message, and run the comparison again after resolving the error."
+        )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("OK", key="popup_close_error", width="stretch"):
+            st.session_state.training_just_completed = None
+            if has_results:
+                return_to_ready_next()
+            else:
+                st.rerun()
+    with c2:
+        if has_results and st.button("View Available Results →", type="secondary", width="stretch", key="popup_goto_partial"):
             st.session_state.training_just_completed = None
             go_to("compare_results")
-    else:
-        st.error(f"### Training Completed with Warnings or Errors\n**{completed} of {expected}** runs finished successfully.")
-        if errors:
-            st.markdown("#### Recorded Errors:")
-            compact_dataframe(pd.DataFrame(errors), height=200)
-        st.caption("You may inspect partial results or adjust test settings and re-run.")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("Close", key="popup_close_error", width="stretch"):
-                st.session_state.training_just_completed = None
-                st.rerun()
-        with c2:
-            if completed > 0 and st.button("View Partial Results →", type="secondary", width="stretch", key="popup_goto_partial"):
-                st.session_state.training_just_completed = None
-                go_to("compare_results")
 
 
 step_header(
@@ -63,6 +95,7 @@ step_header(
     "Run the training and testing",
     "Start the comparison. Each algorithm is trained and tested several times while one complete recording is kept aside for each test round.",
 )
+show_step_completion_dialog("compare", 3)
 
 if not require_settings():
     st.stop()
@@ -155,7 +188,20 @@ if start_clicked:
                     summary_results=summary,
                     config=config,
                 )
-                st.session_state.training_just_completed = "success" if not run.errors else "failure"
+                if run.errors:
+                    st.session_state.training_just_completed = "warning"
+                else:
+                    completed_jobs, expected_jobs = evaluation_progress(st.session_state)
+                    st.session_state.training_just_completed = None
+                    queue_step_completion(
+                        "compare",
+                        3,
+                        title="Algorithm comparison complete",
+                        message=(
+                            f"All {completed_jobs} of {expected_jobs} requested model-fold "
+                            "runs produced genuine results. You can now review the comparison."
+                        ),
+                    )
             except Exception as exc:
                 st.session_state.artifact_paths = {}
                 st.session_state.training_errors.append({
@@ -166,7 +212,7 @@ if start_clicked:
                     "error": str(exc),
                     "error_type": type(exc).__name__,
                 })
-                st.session_state.training_just_completed = "failure"
+                st.session_state.training_just_completed = "warning"
         else:
             st.session_state.training_just_completed = "failure"
     else:
@@ -176,14 +222,11 @@ if start_clicked:
     message_box.empty()
     st.rerun()
 
-# Trigger Popup Modal Dialog on completion (both success and failure)
+# Trigger a detailed modal only when the run did not complete cleanly.
 completed, expected = evaluation_progress(st.session_state)
-if st.session_state.get("training_just_completed") == "success":
-    st.toast("Algorithm training and evaluation completed successfully.")
-    _show_training_result_dialog("success", completed, expected, algorithms, st.session_state.training_errors, len(prepared.group_ids))
-elif st.session_state.get("training_just_completed") == "failure":
+if st.session_state.get("training_just_completed") in {"warning", "failure"}:
     st.toast("Training finished with warnings or errors. Review details.")
-    _show_training_result_dialog("failure", completed, expected, algorithms, st.session_state.training_errors, len(prepared.group_ids))
+    _show_training_failure_dialog(completed, expected, st.session_state.training_errors)
 
 # --------------------------------------------------------------------------
 # Setup Overview & Status Section
@@ -215,8 +258,17 @@ elif st.session_state.evaluation_attempted:
     st.error("The latest attempt produced no usable result. Review the recorded errors below.")
 
 if st.session_state.training_errors:
+    training_errors_df = pd.DataFrame(st.session_state.training_errors)
+    st.download_button(
+        "Download Training Error Report (CSV)",
+        data=training_errors_df.to_csv(index=False).encode("utf-8"),
+        file_name="training_error_report.csv",
+        mime="text/csv",
+        width="stretch",
+        key="download_training_errors",
+    )
     with st.expander("Review recorded errors"):
-        compact_dataframe(pd.DataFrame(st.session_state.training_errors), height=280)
+        compact_dataframe(training_errors_df, height=280)
 
 with st.expander("Technical details: test rounds and saved settings"):
     st.markdown("#### Recording-based test matrix")

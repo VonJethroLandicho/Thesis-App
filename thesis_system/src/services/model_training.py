@@ -73,7 +73,11 @@ def run_loro_evaluation(
                 errors=errors,
             )
         _validate_training_inputs(prepared, canonical_algorithms, config)
-        folds = create_loro_folds(prepared)
+        # Streamlit can retain a valid prepared object across a source hot
+        # reload, while Python gives the reloaded dataclass a new class
+        # identity. The canonical encoded mapping is stable across that reload
+        # and preserves the same recording-level LORO boundaries and counts.
+        folds = create_loro_folds(prepared.encoded_sequences)
     except Exception as exc:
         errors.append(
             _error_record(

@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.components.ui import compact_dataframe, next_action_helper, section_title, stat_card, status_row, step_actions, step_header
+from src.components.ui import (
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    section_title,
+    show_step_completion_dialog,
+    stat_card,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.data.protocol import DEFAULT_GENERATION_LENGTHS
 from src.services.generation_service import generate_sequence
 from src.workflows.guards import require_completed_evaluation, require_final_model
@@ -16,6 +26,7 @@ step_header(
     "Generate a rhythm sequence",
     "Choose the output length and sampling controls. The result is a token sequence produced by the final model, not a claim of authentic traditional music.",
 )
+show_step_completion_dialog("generate", 3)
 
 if not require_completed_evaluation():
     st.stop()
@@ -98,6 +109,15 @@ if st.button("Generate Sequence", type="primary", width="stretch", key="generate
         st.session_state.rendered_audio_bytes = None
         st.session_state.audio_mapping_log = None
         st.session_state.audio_summary = None
+        queue_step_completion(
+            "generate",
+            3,
+            title="Sequence generated",
+            message=(
+                f"A {len(result.dataframe)}-event rhythmic-event token sequence was "
+                "generated. You can now prepare the sound samples."
+            ),
+        )
         st.rerun()
     except Exception as exc:
         st.error(f"The sequence could not be generated: {exc}")

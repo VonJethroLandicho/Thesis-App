@@ -79,6 +79,8 @@ def _defaults() -> dict[str, Any]:
         "rendered_audio_bytes": None,
         "audio_mapping_log": None,
         "audio_summary": None,
+        "step_completion_notice": None,
+        "scroll_to_ready_next": False,
         "session_run_history": [],
     }
 
@@ -133,6 +135,8 @@ def invalidate_evaluation(state: Any) -> None:
     state["training_errors"] = []
     state["artifact_paths"] = {}
     state["evaluation_attempted"] = False
+    state["step_completion_notice"] = None
+    state["scroll_to_ready_next"] = False
     state["generated_sequences"] = None
     state["generation_algorithm"] = None
     state["final_model_artifact"] = None
@@ -303,6 +307,8 @@ def has_generated_sequences(state: Any) -> bool:
 def invalidate_generation(state: Any) -> None:
     """Clear model/sequence outputs while preserving the shared sample bank."""
 
+    state["step_completion_notice"] = None
+    state["scroll_to_ready_next"] = False
     state["final_model_artifact"] = None
     state["final_model_history"] = None
     state["final_model_summary"] = None

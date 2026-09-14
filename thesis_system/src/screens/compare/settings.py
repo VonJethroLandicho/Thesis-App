@@ -3,7 +3,18 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from src.components.ui import callout, compact_dataframe, next_action_helper, section_title, stat_card, status_row, step_actions, step_header
+from src.components.ui import (
+    callout,
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    section_title,
+    show_step_completion_dialog,
+    stat_card,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.data.protocol import ALGORITHMS, EXPECTED_EVENT_CLASS_COUNT, SUPPORTED_WINDOW_SIZES
 from src.data.training_config import default_training_config
 from src.services.session_state import invalidate_evaluation
@@ -131,7 +142,15 @@ def _render_settings_form(prepared, current, max_top_k):
             st.session_state.selected_algorithms = list(selected_algorithms)
             st.session_state.training_config = saved
             st.session_state.protocol_saved = True
-            st.toast("Test settings saved successfully.")
+            queue_step_completion(
+                "compare",
+                2,
+                title="Test settings saved",
+                message=(
+                    "The comparison settings were saved successfully. You can now "
+                    "continue to Run Training & Testing."
+                ),
+            )
             st.rerun()
 
     st.markdown("#### Setup Summary")
@@ -155,6 +174,7 @@ step_header(
     "Set up the algorithm comparison",
     "Choose one set of test settings so Markov Chain, GRU, and LSTM are compared under the same conditions.",
 )
+show_step_completion_dialog("compare", 2)
 
 if not require_dataset():
     st.stop()
@@ -163,10 +183,16 @@ prepared = st.session_state.prepared_dataset
 current = {**default_training_config(), **dict(st.session_state.training_config)}
 max_top_k = max(1, int(prepared.vocabulary_size) if prepared is not None else EXPECTED_EVENT_CLASS_COUNT)
 
-# Layout toggle to show/hide side instructions and dynamically expand settings form space
-top_left, top_right = st.columns([3, 1.2], vertical_alignment="center")
-with top_right:
-    show_guide = st.toggle("Show Instructions", value=st.session_state.get("show_settings_guide", True), key="show_settings_guide", help="Toggle the left-side instructions on or off to maximize form space.")
+# Keep the guide control aligned with the instruction panel it controls.
+guide_toggle_col, _ = st.columns([1, 1.75], gap="large")
+with guide_toggle_col:
+    guide_is_visible = bool(st.session_state.get("show_settings_guide", True))
+    show_guide = st.toggle(
+        "Hide Instructions" if guide_is_visible else "Show Instructions",
+        value=guide_is_visible,
+        key="show_settings_guide",
+        help="Toggle the left-side instructions on or off to maximize form space.",
+    )
 
 if show_guide:
     col_instructions, col_main = st.columns([1, 1.75], gap="large")

@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.components.ui import compact_dataframe, next_action_helper, section_title, stat_card, status_row, step_actions, step_header
+from src.components.ui import (
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    section_title,
+    show_step_completion_dialog,
+    stat_card,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.services.audio_service import render_sequence_audio
 from src.workflows.guards import require_completed_evaluation
 from src.workflows.progress import generated_sequence_ready, rendered_audio_ready, sample_bank_ready
@@ -15,6 +25,7 @@ step_header(
     "Create and listen to the sound preview",
     "Render the generated token sequence using the reviewed performance-derived WAV sample bank.",
 )
+show_step_completion_dialog("generate", 5)
 
 if not require_completed_evaluation():
     st.stop()
@@ -72,6 +83,15 @@ if st.button("Create Sound Preview", type="primary", width="stretch", key="rende
             "peak_before_limit": result.peak_before_limit,
             "timing_intervals": result.timing_intervals,
         }
+        queue_step_completion(
+            "generate",
+            5,
+            title="Sound preview created",
+            message=(
+                "The sample-rendered research sound preview is ready. You can now "
+                "continue to Save Output."
+            ),
+        )
         st.rerun()
     except Exception as exc:
         st.session_state.rendered_audio_bytes = None

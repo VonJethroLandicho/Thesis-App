@@ -5,7 +5,17 @@ from dataclasses import fields
 import pandas as pd
 import streamlit as st
 
-from src.components.ui import compact_dataframe, next_action_helper, section_title, stat_card, status_row, step_actions, step_header
+from src.components.ui import (
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    section_title,
+    show_step_completion_dialog,
+    stat_card,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.data.training_config import TrainingConfig
 from src.models.pytorch_backend import neural_backend_status
 from src.services.generation_service import train_final_model
@@ -28,6 +38,7 @@ step_header(
     "Train the final model",
     "Train the selected algorithm on all verified recordings. This model is used only for generation after the evaluation has already been completed.",
 )
+show_step_completion_dialog("generate", 2)
 
 if not require_completed_evaluation():
     st.stop()
@@ -88,6 +99,15 @@ if st.button(
             "vocabulary_size": artifact.vocabulary_size,
             "window_size": artifact.config.window_size,
         }
+        queue_step_completion(
+            "generate",
+            2,
+            title="Final model ready",
+            message=(
+                f"The final {artifact.algorithm} model finished training on all verified "
+                "recordings. You can now generate a sequence."
+            ),
+        )
         st.rerun()
     except Exception as exc:
         st.session_state.final_model_artifact = None

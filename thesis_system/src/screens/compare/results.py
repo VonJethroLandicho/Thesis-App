@@ -285,10 +285,16 @@ if not evaluation_has_results(st.session_state):
 summary = aggregate_algorithm_summary(fold_results)
 st.session_state.summary_results = summary
 
-# Layout toggle to show/hide side guide and dynamically expand results space
-top_left, top_right = st.columns([3, 1.2], vertical_alignment="center")
-with top_right:
-    show_guide = st.toggle("Show Guide Panel", value=st.session_state.get("show_results_guide", True), key="show_results_guide", help="Toggle the left-side guide on or off to maximize results chart and table space.")
+# Keep the guide control aligned with the introduction panel it controls.
+guide_toggle_col, _ = st.columns([1, 1.85], gap="large")
+with guide_toggle_col:
+    guide_is_visible = bool(st.session_state.get("show_results_guide", True))
+    show_guide = st.toggle(
+        "Hide Guide Panel" if guide_is_visible else "Show Guide Panel",
+        value=guide_is_visible,
+        key="show_results_guide",
+        help="Toggle the left-side guide on or off to maximize results chart and table space.",
+    )
 
 if show_guide:
     col_intro, col_main = st.columns([1, 1.85], gap="large")

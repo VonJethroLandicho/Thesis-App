@@ -7,7 +7,17 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from src.components.ui import compact_dataframe, next_action_helper, section_title, stat_card, status_row, step_actions, step_header
+from src.components.ui import (
+    compact_dataframe,
+    next_action_helper,
+    queue_step_completion,
+    section_title,
+    show_step_completion_dialog,
+    stat_card,
+    status_row,
+    step_actions,
+    step_header,
+)
 from src.data.protocol import EVENT_COLUMN_REFERENCE, REQUIRED_EVENT_COLUMN_NAMES
 from src.services.data_validation import validate_event_dataset
 from src.services.sequence_dataset import DatasetPreparationError, prepare_sequence_dataset
@@ -61,6 +71,7 @@ step_header(
     "Upload your research data",
     "Select verified_event_dataset.csv. The app checks the file automatically and keeps each recording as one ordered sequence.",
 )
+show_step_completion_dialog("compare", 1)
 
 ready = bool(st.session_state.dataset_validated and st.session_state.prepared_dataset is not None)
 sample_csv_text, sample_df = _sample_csv_data()
@@ -144,6 +155,16 @@ if uploaded is not None:
                     validation.errors.append(str(exc))
                     validation.valid = False
             _save_dataset(validation, source_df, prepared, fingerprint)
+            if validation.valid and prepared is not None:
+                queue_step_completion(
+                    "compare",
+                    1,
+                    title="Dataset ready",
+                    message=(
+                        "The research dataset passed validation. You can now continue "
+                        "to Test Settings."
+                    ),
+                )
             st.rerun()
         except Exception as exc:
             invalidate_protocol(st.session_state)

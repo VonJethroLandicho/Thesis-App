@@ -708,6 +708,7 @@ div[data-testid="stExpander"] details {
   gap: 0.55rem;
   min-height: 48px;
   padding: 0.55rem 0.75rem;
+  overflow: hidden;
   border-radius: 11px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: #8b9e9a;
@@ -733,6 +734,24 @@ div[data-testid="stExpander"] details {
   line-height: 1.25;
 }
 
+/* A compact end cap makes the left-to-right comparison flow immediately
+   visible without changing the step's state marker or navigation behavior. */
+.workflow-step-flow-arrow {
+  align-self: stretch;
+  flex: 0 0 2.15rem;
+  display: inline-grid;
+  place-items: center;
+  min-height: 46px;
+  margin: -0.55rem -0.75rem -0.55rem auto;
+  padding: 0 0.22rem 0 0;
+  border-left: 1px solid rgba(45, 212, 191, 0.18);
+  color: #5eead4;
+  background: rgba(45, 212, 191, 0.07);
+  font-size: 1.42rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .workflow-step.complete {
   color: #c6f6e5;
   background: rgba(52, 211, 153, 0.07);
@@ -745,6 +764,12 @@ div[data-testid="stExpander"] details {
   border-color: rgba(52, 211, 153, 0.30);
 }
 
+.workflow-step.complete .workflow-step-flow-arrow {
+  color: #a7f3d0;
+  border-left-color: rgba(52, 211, 153, 0.24);
+  background: rgba(52, 211, 153, 0.08);
+}
+
 .workflow-step.current {
   color: #ffffff;
   border-color: rgba(45, 212, 191, 0.45);
@@ -755,6 +780,12 @@ div[data-testid="stExpander"] details {
   color: #03100e;
   background: #2dd4bf;
   border-color: #2dd4bf;
+}
+
+.workflow-step.current .workflow-step-flow-arrow {
+  color: #5eead4;
+  border-left-color: rgba(45, 212, 191, 0.34);
+  background: rgba(45, 212, 191, 0.13);
 }
 
 .workflow-step.available {
@@ -770,6 +801,10 @@ div[data-testid="stExpander"] details {
 
 .workflow-step.locked {
   opacity: 0.65;
+}
+
+.workflow-step.locked .workflow-step-flow-arrow {
+  color: #76948e;
 }
 
 /* These are the Previous/Next action controls in workflow pages. */
@@ -806,16 +841,34 @@ div[data-testid="stExpander"] details {
 }
 
 [class*="st-key-workflow_next_"] button:not(:disabled) {
-  background: #2dd4bf !important;
+  background: linear-gradient(110deg, #14b8a6 0%, #5eead4 46%, #2dd4bf 72%, #14b8a6 100%) !important;
+  background-size: 240% 100% !important;
   color: #03100e !important;
   border: 1.5px solid #2dd4bf !important;
-  box-shadow: 0 12px 32px rgba(20, 184, 166, 0.30) !important;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.20), 0 12px 32px rgba(20, 184, 166, 0.36) !important;
+  animation: readyNextGradient 2.4s linear infinite, readyNextPulse 1.25s ease-in-out infinite;
 }
 
 [class*="st-key-workflow_next_"] button:not(:disabled) p,
 [class*="st-key-workflow_next_"] button:not(:disabled) span,
 [class*="st-key-workflow_next_"] button:not(:disabled) div {
   color: #03100e !important;
+}
+
+@keyframes readyNextGradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 240% 50%; }
+}
+
+@keyframes readyNextPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.20), 0 12px 32px rgba(20, 184, 166, 0.36);
+  }
+  50% {
+    transform: scale(1.012);
+    box-shadow: 0 0 0 5px rgba(94, 234, 212, 0.18), 0 16px 42px rgba(45, 212, 191, 0.58);
+  }
 }
 
 [class*="st-key-workflow_next_"] button:disabled {
@@ -843,31 +896,6 @@ div[data-testid="stExpander"] details {
   color: #a7f3d0 !important;
   margin-top: 0.45rem !important;
   line-height: 1.5 !important;
-}
-
-.next-step-cue {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 1.6rem;
-  margin-bottom: 0.3rem;
-  color: #73e7d7;
-  font-size: 0.95rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-@keyframes nextStepArrow {
-  0%, 100% { transform: translateY(0); opacity: 0.72; }
-  50% { transform: translateY(5px); opacity: 1; }
-}
-
-.next-step-arrow {
-  display: inline-block;
-  font-size: 1.3rem;
-  animation: nextStepArrow 0.85s ease-in-out 3;
 }
 
 .workflow-final-note {
@@ -962,7 +990,7 @@ div.stButton > button[kind="primary"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .next-step-arrow {
+  [class*="st-key-workflow_next_"] button:not(:disabled) {
     animation: none !important;
   }
 }
