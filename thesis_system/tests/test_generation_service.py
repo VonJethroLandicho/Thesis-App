@@ -54,3 +54,63 @@ def test_generation_is_reproducible_for_same_seed() -> None:
     second = generate_sequence(artifact=artifact, prepared=prepared, length=16, temperature=0.9, top_k=3, random_seed=123)
 
     pd.testing.assert_frame_equal(first.dataframe, second.dataframe)
+
+
+def test_ostinato_generation_at_low_temperature_maintains_repetitive_cadence() -> None:
+    # Build a repetitive sequence where token A -> token B -> token C loops across 2 groups
+    rows = []
+    cycle = ["SHORT_WEAK", "SHORT_WEAK", "SHORT_MEDIUM"]
+    for group in ["PERF-A", "PERF-B"]:
+        for i in range(24):
+            rows.append({
+                "group_id": group,
+                "event_index": i + 1,
+                "event_token": cycle[i % 3],
+            })
+    prepared = prepare_sequence_dataset(pd.DataFrame(rows))
+    config = TrainingConfig(window_size=3, markov_order=2, smoothing=0.1)
+    artifact = train_final_model(prepared=prepared, algorithm="Markov Chain", config=config)
+
+    result = generate_sequence(
+        artifact=artifact,
+        prepared=prepared,
+        length=32,
+        temperature=0.5,
+        top_k=2,
+        random_seed=42,
+        seed_tokens=cycle,
+    )
+    tokens = result.dataframe["event_token"].tolist()
+    # At low temperature on a cyclic sequence, the model reproduces the ostinato
+    assert len(tokens) == 32
+    assert tokens[:3] == cycle
+    # Most tokens should follow the learned cycle
+    assert tokens[3] == "SHORT_WEAK"
+    assert tokens[4] == "SHORT_WEAK"
+    assert tokens[5] == "SHORT_MEDIUM"
+
+
+def test_compute_sequence_novelty_detects_validity_and_novelty() -> None:
+    from src.services.generation_service import compute_sequence_novelty
+
+    prepared = _prepared()
+    # 1. Exact copy of group A
+    exact_seq = pd.DataFrame({"event_token": prepared.sequences["A"]})
+    metrics_exact = compute_sequence_novelty(exact_seq, prepared)
+    assert metrics_exact.is_verbatim_copy is True
+    assert metrics_exact.matched_training_group == "A"
+    assert metrics_exact.valid_transitions_pct == 100.0
+
+    # 2. Sequence with novel combinations
+    novel_seq = pd.DataFrame({
+        "event_token": [
+            "START_WEAK", "SHORT_MEDIUM", "START_MEDIUM", "SHORT_WEAK",
+            "MEDIUM_STRONG", "LONG_WEAK", "SHORT_STRONG", "MEDIUM_MEDIUM"
+        ]
+    })
+    metrics_novel = compute_sequence_novelty(novel_seq, prepared)
+    assert metrics_novel.is_verbatim_copy is False
+    assert metrics_novel.matched_training_group is None
+    assert metrics_novel.total_events == 8
+
+

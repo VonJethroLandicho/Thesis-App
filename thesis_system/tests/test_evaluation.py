@@ -123,3 +123,4 @@ def test_algorithm_summary_validates_schema_and_handles_no_rows() -> None:
         "loss_mean",
         "loss_std",
     ]
+

@@ -18,11 +18,25 @@ env/
 
 # Generated thesis-system run artifacts
 thesis_system/results/
+downloads/
+thesis_system/downloads/
 
 # Local logs / temporary files
 *.log
 *.tmp
 *.temp
+archive/
+scratch/
+scratch_ensemble_analysis/
+scratch_autonomous_sound_lab/
+.pytest_temp/
+.pytest_tmp/
+test_tmp/
+thesis_system/.pytest_temp/
+thesis_system/.pytest_tmp/
+thesis_system/test_tmp/
+thesis_system/presets/*.json
+!thesis_system/presets/.gitkeep
 
 # IDE / OS noise
 .idea/
@@ -30,3 +44,11 @@ thesis_system/results/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Local working folders & external backups
+teammatework/
+sample_bank_output/
+sample work/
+Workflow A review/
+.impeccable/
+.agents/

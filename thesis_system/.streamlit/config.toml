@@ -1,27 +1,27 @@
 [theme]
-base = "dark"
-primaryColor = "#2DD4BF"
-backgroundColor = "#07100F"
-secondaryBackgroundColor = "#0D1716"
-textColor = "#F4F7F6"
+base = "light"
+primaryColor = "#FEF08A"
+backgroundColor = "#FAF8F5"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1A1A1A"
 font = "sans serif"
-baseRadius = "0.75rem"
-buttonRadius = "0.65rem"
-borderColor = "#233A36"
-dataframeBorderColor = "#233A36"
-dataframeHeaderBackgroundColor = "#10211E"
+baseRadius = "16px"
+buttonRadius = "10px"
+borderColor = "#DDD8CE"
+dataframeBorderColor = "#DDD8CE"
+dataframeHeaderBackgroundColor = "#FFEDD5"
 showWidgetBorder = true
 showSidebarBorder = true
-chartCategoricalColors = ["#2DD4BF", "#60A5FA", "#A78BFA", "#FBBF24", "#FB7185"]
+chartCategoricalColors = ["#1A1A1A", "#FEF08A", "#FFEDD5", "#FED7AA", "#FB923C"]
 
 [theme.sidebar]
-backgroundColor = "#08110F"
-secondaryBackgroundColor = "#0D1716"
-textColor = "#E8F0EE"
-primaryColor = "#2DD4BF"
-baseRadius = "0.65rem"
-buttonRadius = "0.55rem"
-borderColor = "#1A2A27"
+backgroundColor = "#FAF8F5"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1A1A1A"
+primaryColor = "#FEF08A"
+baseRadius = "10px"
+buttonRadius = "8px"
+borderColor = "#DDD8CE"
 showWidgetBorder = true
 
 [server]

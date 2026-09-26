@@ -32,7 +32,9 @@ def evaluation_has_results(state: Mapping[str, Any]) -> bool:
 
 
 def generation_unlocked(state: Mapping[str, Any]) -> bool:
-    return evaluation_complete(state)
+    # Decoupled from analysis: Generate & Listen is an independent function
+    # and can be used directly whenever the user wishes.
+    return True
 
 
 def final_model_ready(state: Mapping[str, Any]) -> bool:
@@ -88,35 +90,21 @@ def generate_step_completed(step: int, state: Mapping[str, Any]) -> bool:
     if not generation_unlocked(state):
         return False
     if step == 1:
-        return bool(state.get("generation_algorithm"))
+        return rendered_audio_ready(state) or generated_sequence_ready(state)
     if step == 2:
-        return final_model_ready(state)
-    if step == 3:
-        return generated_sequence_ready(state)
-    if step == 4:
         return sample_bank_ready(state)
-    if step == 5:
-        return rendered_audio_ready(state)
-    if step == 6:
+    if step == 3:
         return rendered_audio_ready(state)
     return False
 
 
 def generate_step_available(step: int, state: Mapping[str, Any]) -> bool:
-    if not generation_unlocked(state):
-        return False
     if step == 1:
         return True
     if step == 2:
-        return bool(state.get("generation_algorithm"))
+        return True
     if step == 3:
-        return final_model_ready(state)
-    if step == 4:
-        return generated_sequence_ready(state)
-    if step == 5:
-        return generated_sequence_ready(state) and sample_bank_ready(state)
-    if step == 6:
-        return rendered_audio_ready(state)
+        return rendered_audio_ready(state) or generated_sequence_ready(state)
     return False
 
 
@@ -155,14 +143,8 @@ def step_lock_reason(workflow: WorkflowKey, step: int, state: Mapping[str, Any])
         }
         return reasons.get(step, "Complete the earlier comparison step first.")
 
-    if not evaluation_complete(state):
-        return "Complete the full Compare Algorithms workflow first."
-
     reasons = {
-        2: "Choose an algorithm for generation first.",
-        3: "Train the final model first.",
-        4: "Generate a rhythmic-event sequence first.",
-        5: "Prepare and validate the sound samples first.",
-        6: "Create the sound preview first.",
+        2: "Sound samples can be checked or customized at any time.",
+        3: "Generate a rhythm sequence or sound preview in the studio first.",
     }
     return reasons.get(step, "Complete the earlier Generate & Listen step first.")

@@ -207,7 +207,7 @@ def validate_event_dataset(df: pd.DataFrame) -> ValidationResult:
 
     if 2 <= int(summary["groups"]) < len(EXPECTED_RECORDING_GROUPS):
         warnings.append(
-            "Fewer than five groups were detected. The current thesis plan expects five "
+            "Fewer than five groups were detected. The research evaluation protocol expects five "
             "folds if all five recordings pass curation."
         )
 

@@ -9,7 +9,7 @@ class TrainingConfig:
 
     window_size: int = 3
     markov_order: int = 2
-    smoothing: float = 1.0
+    smoothing: float = 0.1
     top_k: int = 3
     embedding_dim: int = 8
     hidden_units: int = 16

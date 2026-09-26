@@ -48,8 +48,9 @@ def _defaults() -> dict[str, Any]:
         "selected_page": "Overview",
         "selected_algorithms": list(ALGORITHMS),
         "generation_lengths": list(DEFAULT_GENERATION_LENGTHS),
-        "sampling_temperature": 1.0,
-        "top_k": 5,
+        "sampling_temperature": 0.7,
+        "top_k": 3,
+        "phrase_bias": 1.5,
         "dataset_validated": False,
         "uploaded_dataframe": None,
         "prepared_dataset": None,
@@ -82,6 +83,11 @@ def _defaults() -> dict[str, Any]:
         "step_completion_notice": None,
         "scroll_to_ready_next": False,
         "session_run_history": [],
+        # Restore-session flags
+        "session_restored": False,
+        "restore_banner_dismissed": False,
+        "last_session_preset": None,
+        "restore_dataset_path": None,
     }
 
 
@@ -124,6 +130,9 @@ def initialize_session_state(state: Any) -> None:
                 max(1, current_generation_top_k),
                 vocabulary_size,
             )
+
+    # Attempt to restore last session from disk (runs once per fresh session).
+    try_restore_last_session(state)
 
 
 def invalidate_evaluation(state: Any) -> None:
@@ -314,3 +323,32 @@ def invalidate_generation(state: Any) -> None:
     state["final_model_summary"] = None
     state["generated_sequences"] = None
     clear_rendered_audio_state(state)
+
+
+def try_restore_last_session(state: Any) -> None:
+    """Detect previous session metadata for display without violating dataset invariants."""
+    if state.get("session_restored", False):
+        return
+
+    try:
+        from src.services.preset_store import last_session_preset
+
+        preset = last_session_preset()
+        if preset is None:
+            state["session_restored"] = True
+            return
+
+        # Store preset for the home screen restore-banner and presets screen
+        state["last_session_preset"] = preset
+
+        # Store the dataset path for the prepare_data screen to offer quick-reload.
+        dataset_path = preset.get("dataset_path")
+        if dataset_path:
+            state["restore_dataset_path"] = dataset_path
+            state["restore_dataset_fingerprint"] = preset.get("dataset_fingerprint")
+
+    except Exception:
+        # Never crash the app on a restore failure.
+        pass
+    finally:
+        state["session_restored"] = True

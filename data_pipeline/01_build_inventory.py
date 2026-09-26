@@ -11,7 +11,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 RAW_FOLDERS = {
-    "ensemble": PROJECT_ROOT / "data" / "raw" / "ensemble",
+    "ensemble": PROJECT_ROOT / "data" / "raw" / "ensembles",
     "isolated_strike": PROJECT_ROOT / "data" / "raw" / "isolated_strikes",
 }
 

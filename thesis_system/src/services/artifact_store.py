@@ -725,7 +725,10 @@ def _commit_run_directory(
         artifact_names["manifest"] = manifest_path.name
 
         # The new destination exposes only the fully written directory.
-        os.replace(staging_directory, final_directory)
+        try:
+            os.replace(staging_directory, final_directory)
+        except OSError:
+            shutil.move(str(staging_directory), str(final_directory))
         return artifact_names
     except Exception:
         shutil.rmtree(staging_directory, ignore_errors=True)
@@ -820,9 +823,97 @@ def save_evaluation_artifacts(
         final_directory,
         context,
     )
+    try:
+        from .downloads_service import save_file_to_downloads
+        save_file_to_downloads("fold_level_results.csv", fold_level_results.to_csv(index=False).encode("utf-8"))
+        save_file_to_downloads("algorithm_summary.csv", algorithm_summary.to_csv(index=False).encode("utf-8"))
+        if training_history is not None and not training_history.empty:
+            save_file_to_downloads("training_history.csv", training_history.to_csv(index=False).encode("utf-8"))
+        scorecard = format_manuscript_scorecard(algorithm_summary)
+        if scorecard:
+            save_file_to_downloads("research_manuscript_scorecard.txt", scorecard)
+    except Exception:
+        pass
+
     return _artifact_paths(
         evaluation_root,
         final_directory,
         latest_path,
         artifact_names,
     )
+
+
+
+def format_manuscript_scorecard(summary_results: pd.DataFrame | None) -> str:
+    """Generate publication-ready Markdown and LaTeX scorecard tables for Chapter 4."""
+    if summary_results is None or not isinstance(summary_results, pd.DataFrame) or summary_results.empty:
+        return ""
+
+    def _fmt_cell(mean_val: object, std_val: object = None, precision: int = 4) -> str:
+        try:
+            m = float(mean_val)
+            if pd.isna(m):
+                return "N/A"
+            if std_val is not None:
+                s = float(std_val)
+                if not pd.isna(s) and s > 0:
+                    return f"{m:.{precision}f} ± {s:.{precision}f}"
+            return f"{m:.{precision}f}"
+        except (TypeError, ValueError):
+            return "N/A"
+
+    # Build Markdown table
+    md_lines = [
+        "# Algorithm Performance Comparison Scorecard",
+        "## Comparative Analysis of Markov Chain, GRU, and LSTM Algorithms for Low-Resource Sadanga Gangsa-Based Rhythmic Event Sequence Generation",
+        "### Chapter 4: Benchmark & Evaluation Records (Leave-One-Recording-Out Cross-Validation)",
+        "",
+        "| Algorithm | Folds | Macro F1 (Mean ± Std) | Exact Accuracy (Mean ± Std) | Top-3 Recall (Mean ± Std) | Mistake Loss (Mean ± Std) | Training Time (s) |",
+        "|:---|:---:|:---:|:---:|:---:|:---:|:---:|",
+    ]
+
+    latex_rows = []
+    for _, row in summary_results.iterrows():
+        algo = str(row.get("algorithm", "Unknown"))
+        folds = str(row.get("folds_completed", "5"))
+        f1_str = _fmt_cell(row.get("macro_f1_mean"), row.get("macro_f1_std"))
+        acc_str = _fmt_cell(row.get("accuracy_mean"), row.get("accuracy_std"))
+        topk_str = _fmt_cell(row.get("top_k_accuracy_mean"), row.get("top_k_accuracy_std"))
+        loss_str = _fmt_cell(row.get("loss_mean"), row.get("loss_std"))
+        time_str = _fmt_cell(row.get("training_time_seconds_mean"), precision=3)
+
+        md_lines.append(f"| {algo} | {folds} | {f1_str} | {acc_str} | {topk_str} | {loss_str} | {time_str} |")
+        latex_rows.append(f"    {algo} & {folds} & {f1_str} & {acc_str} & {topk_str} & {loss_str} & {time_str} \\\\")
+
+    md_lines.extend([
+        "",
+        "**Methodology Notes:**",
+        "- **Evaluation Protocol**: Leave-One-Recording-Out (LORO) cross-validation across 5 verified recording groups (PERF-001 to PERF-005, 586 total rhythmic-event tokens).",
+        "- **Prediction Task**: Next rhythmic-event token prediction given preceding context window.",
+        "- **Top-k Recall**: Evaluated at k = 3.",
+        "- **Macro F1**: Unweighted arithmetic mean across all rhythmic-event token classes.",
+        "- **Mistake Loss**: Mean cross-entropy loss on held-out evaluation folds.",
+        "- **Execution Platform**: Standard CPU environment.",
+        "",
+        "---",
+        "",
+        "% ----------------------------------------------------------------------",
+        "% LaTeX Manuscript Table (Booktabs format for Manuscript / Research Paper submission)",
+        "% ----------------------------------------------------------------------",
+        "\\begin{table}[htbp]",
+        "  \\centering",
+        "  \\caption{Comparative Performance of Markov Chain, GRU, and LSTM Algorithms under Leave-One-Recording-Out (LORO) Cross-Validation}",
+        "  \\label{tab:algorithm_loro_comparison}",
+        "  \\begin{tabular}{lcccccc}",
+        "    \\toprule",
+        "    \\textbf{Algorithm} & \\textbf{Folds} & \\textbf{Macro F1} & \\textbf{Exact Acc.} & \\textbf{Top-3 Recall} & \\textbf{Loss} & \\textbf{Time (s)} \\\\",
+        "    \\midrule",
+    ])
+    md_lines.extend(latex_rows)
+    md_lines.extend([
+        "    \\bottomrule",
+        "  \\end{tabular}",
+        "\\end{table}",
+    ])
+
+    return "\n".join(md_lines)

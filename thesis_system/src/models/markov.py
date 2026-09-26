@@ -22,6 +22,7 @@ class SmoothedNGramModel:
         order: int = 2,
         smoothing: float = 1.0,
         vocabulary_size: int | None = None,
+        backoff: bool = False,
     ) -> None:
         if order not in (1, 2):
             raise ValueError("Markov order must be 1 or 2.")
@@ -33,7 +34,9 @@ class SmoothedNGramModel:
         self.order = order
         self.smoothing = float(smoothing)
         self.vocabulary_size = vocabulary_size
+        self.backoff = bool(backoff)
         self._context_counts: dict[tuple[int, ...], np.ndarray] = {}
+        self._backoff_counts: dict[tuple[int, ...], np.ndarray] = {}
         self._unigram_counts: np.ndarray | None = None
         self._is_fitted = False
 
@@ -84,6 +87,9 @@ class SmoothedNGramModel:
         context_counts: defaultdict[tuple[int, ...], np.ndarray] = defaultdict(
             lambda: np.zeros(self.vocabulary_size, dtype=np.float64)
         )
+        backoff_counts: defaultdict[tuple[int, ...], np.ndarray] = defaultdict(
+            lambda: np.zeros(self.vocabulary_size, dtype=np.float64)
+        )
 
         for sequence in normalized:
             if sequence.size > 1:
@@ -92,6 +98,11 @@ class SmoothedNGramModel:
                 np.add.at(unigram_counts, sequence[1:], 1.0)
             elif sequence.size == 1:
                 unigram_counts[int(sequence[0])] += 1.0
+
+            if self.order == 2:
+                for target_index in range(1, len(sequence)):
+                    sub_ctx = (int(sequence[target_index - 1]),)
+                    backoff_counts[sub_ctx][int(sequence[target_index])] += 1.0
 
             for target_index in range(self.order, len(sequence)):
                 context = tuple(
@@ -104,6 +115,7 @@ class SmoothedNGramModel:
 
         self._unigram_counts = unigram_counts
         self._context_counts = dict(context_counts)
+        self._backoff_counts = dict(backoff_counts)
         self._is_fitted = True
         return self
 
@@ -143,10 +155,12 @@ class SmoothedNGramModel:
         )
         for row_index, row in enumerate(context_array):
             context = tuple(int(value) for value in row[-self.order :])
-            counts = self._context_counts.get(
-                context,
-                self._unigram_counts,
-            )
+            counts = self._context_counts.get(context)
+            if counts is None and self.backoff and self.order == 2 and len(row) >= 1:
+                sub_ctx = (int(row[-1]),)
+                counts = self._backoff_counts.get(sub_ctx)
+            if counts is None:
+                counts = self._unigram_counts
             probabilities[row_index] = self._smoothed_probabilities(counts)
         return probabilities
 
@@ -175,6 +189,7 @@ def train_markov_model(
     order: int,
     smoothing: float,
     vocabulary_size: int,
+    backoff: bool = False,
 ) -> tuple[SmoothedNGramModel, float]:
     """Fit the Markov baseline and return it with elapsed training time."""
 
@@ -183,6 +198,7 @@ def train_markov_model(
         order=order,
         smoothing=smoothing,
         vocabulary_size=vocabulary_size,
+        backoff=backoff,
     ).fit(sequences)
     training_time_seconds = perf_counter() - training_started
     return model, training_time_seconds

@@ -29,6 +29,23 @@ def test_markov_implementation_lives_in_its_algorithm_module() -> None:
     np.testing.assert_allclose(probabilities.sum(axis=1), [1.0, 1.0])
 
 
+def test_smoothed_ngram_optional_backoff_mode() -> None:
+    # REC-A: 0 -> 1 -> 2 -> 1 -> 2
+    # [1, 2] is seen once, next token is 1.
+    # [2, 2] is unseen. Under backoff=True, it falls back to context [2], which was seen once followed by 1.
+    model = SmoothedNGramModel(
+        order=2,
+        smoothing=1.0,
+        vocabulary_size=3,
+        backoff=True,
+    ).fit({"REC-A": [0, 1, 2, 1, 2]})
+
+    probs = model.predict_proba([[2, 2]])
+    # Falls back to [2], where next token 1 count=1, others 0.
+    # Counts + smoothing = [1, 2, 1], sum=4 => [0.25, 0.5, 0.25]
+    np.testing.assert_allclose(probs[0], [0.25, 0.5, 0.25])
+
+
 @pytest.mark.skipif(not gru_available(), reason="PyTorch is not installed")
 def test_gru_builder_uses_the_distinct_gru_architecture() -> None:
     import torch

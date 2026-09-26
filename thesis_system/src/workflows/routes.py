@@ -86,20 +86,40 @@ ROUTES: dict[str, Route] = {
     ),
     "generate_model": Route(
         "generate_model",
-        "Choose Algorithm for Generation",
+        "Rhythm & Sound Studio",
         "src/screens/generate/choose_model.py",
         "generate",
         1,
-        "Choose Algorithm",
-        "Choose Algorithm for Generation",
-        "Choose which evaluated algorithm will be used to train the final generation model.",
+        "Sound Studio",
+        "Rhythm & Sound Studio",
+        "Choose an algorithm, adjust rhythm settings, and immediately create and listen to the audio preview.",
+    ),
+    "generate_samples": Route(
+        "generate_samples",
+        "Sound Samples",
+        "src/screens/generate/sound_samples.py",
+        "generate",
+        2,
+        "Sound Samples",
+        "Sound Samples",
+        "Load and check the reviewed WAV samples that are used for the sound preview.",
+    ),
+    "generate_export": Route(
+        "generate_export",
+        "Download Generated Output",
+        "src/screens/generate/export.py",
+        "generate",
+        3,
+        "Download Output",
+        "Download Generated Output",
+        "Download the generated sequence, audio preview, and available generation records.",
     ),
     "generate_train": Route(
         "generate_train",
         "Train Final Generation Model",
         "src/screens/generate/final_training.py",
         "generate",
-        2,
+        None,
         "Train Final Model",
         "Train Final Generation Model",
         "Train one final model on all verified recordings so it can generate a new rhythmic-event sequence.",
@@ -109,40 +129,20 @@ ROUTES: dict[str, Route] = {
         "Generate Rhythm Sequence",
         "src/screens/generate/generate_sequence.py",
         "generate",
-        3,
+        None,
         "Generate Sequence",
         "Generate Rhythm Sequence",
         "Use the final model to create a rhythmic-event token sequence at the selected length.",
-    ),
-    "generate_samples": Route(
-        "generate_samples",
-        "Add Sound Samples",
-        "src/screens/generate/sound_samples.py",
-        "generate",
-        4,
-        "Sound Samples",
-        "Add Sound Samples",
-        "Load and check the reviewed WAV samples that will be used only for the sound preview.",
     ),
     "generate_listen": Route(
         "generate_listen",
         "Create & Listen to Audio",
         "src/screens/generate/listen.py",
         "generate",
-        5,
+        None,
         "Create Audio",
         "Create & Listen to Audio",
         "Render the generated token sequence with the prepared sound samples and listen to the preview.",
-    ),
-    "generate_export": Route(
-        "generate_export",
-        "Download Generated Output",
-        "src/screens/generate/export.py",
-        "generate",
-        6,
-        "Download Output",
-        "Download Generated Output",
-        "Download the generated sequence, audio preview, and available generation records.",
     ),
 }
 
@@ -155,10 +155,7 @@ COMPARE_ROUTE_KEYS = [
 ]
 GENERATE_ROUTE_KEYS = [
     "generate_model",
-    "generate_train",
-    "generate_sequence",
     "generate_samples",
-    "generate_listen",
     "generate_export",
 ]
 
@@ -168,5 +165,12 @@ def route_for_title(title: str) -> Route:
 
 
 def go_to(route_key: str) -> None:
-    route = ROUTES[route_key]
+    # Safely alias any legacy 6-step routes to the unified 3-step studio
+    legacy_aliases = {
+        "generate_train": "generate_model",
+        "generate_sequence": "generate_model",
+        "generate_listen": "generate_model",
+    }
+    target_key = legacy_aliases.get(route_key, route_key)
+    route = ROUTES[target_key]
     st.switch_page(route.path)

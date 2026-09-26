@@ -32,7 +32,7 @@ def _build_pages() -> list[st.Page]:
         _page("compare_export", ":material/download:"),
         _page("generate_model", ":material/check_circle:"),
         _page("generate_train", ":material/memory:"),
-        _page("generate_sequence", ":material/auto_awesome:"),
+        _page("generate_sequence", ":material/queue_music:"),
         _page("generate_samples", ":material/library_music:"),
         _page("generate_listen", ":material/headphones:"),
         _page("generate_export", ":material/save_alt:"),
@@ -42,11 +42,15 @@ def _build_pages() -> list[st.Page]:
 def main() -> None:
     st.set_page_config(
         page_title=APP_TITLE,
-        page_icon="🎼",
+        page_icon=":material/graphic_eq:",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
     initialize_session_state(st.session_state)
+    if not st.session_state.get("_startup_session_restored"):
+        from src.services.preset_store import restore_full_session_state
+        restore_full_session_state(st.session_state)
+        st.session_state["_startup_session_restored"] = True
     load_global_css()
 
     current_page = st.navigation(_build_pages(), position="hidden")

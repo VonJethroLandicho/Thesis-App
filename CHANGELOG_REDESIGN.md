@@ -91,3 +91,37 @@ python -m pytest -m "not integration"
 ```
 
 Then run the complete suite when the sibling `data_pipeline` authoritative dataset is present.
+
+## UI Polish & Component Refinements
+
+### Visual and Component Corrections
+- **Workflow Stepper**: Added high-contrast yellow-on-black pill badge (`YOU ARE HERE`) for the active step so it never renders as a solid black circle.
+- **Dropdown Internal Oblong Removal**: Stripped borders, backgrounds, and shadows from Streamlit's BaseWeb internal `<input>` inside selectboxes (`div[data-baseweb="select"] input`), eliminating the vertical capsule shape beside option labels.
+- **Button Geometry**: Standardized button `border-radius` to `8px` across all sidebar navigation buttons (`Overview`, `Workflow A`, `Workflow B`), page controls, and workflow docks, utilizing full-width container layouts for sidebar items to completely eliminate all oblong/oval pill distortions.
+- **Sidebar Navigation**: Replaced `width="stretch"` with `use_container_width=True` and added full-width flex card styling so sidebar buttons render as uniform, crisp square rectangles matching the app shell.
+- **Control Panel 2 Collapsible**: Wrapped Sound Studio & Synthesizer controls in a collapsible expander (`expanded=False`) so the generation canvas remains clean by default.
+- **Runtime Stability**: Initialized fallback generation variables (`can_generate`, `effective_seed`, `final_max_long`) and removed dangling duplicate navigation code in `choose_model.py`.
+
+### Verification
+- `python -m compileall -q thesis_system/src` (Exit code 0)
+- `pytest thesis_system/tests -m "not integration"` (95 passed, 0 failures)
+
+## Backend Bug Scan & Error Resolution
+
+### Backend Fixes & Defensive Hardening
+- **Manuscript Scorecard Generator**: Implemented `format_manuscript_scorecard()` in `src/services/artifact_store.py` and imported it in `src/screens/compare/export.py`, resolving a critical `NameError: name '_manuscript_table_text' is not defined` when saving Workflow A results. Generates LaTeX `booktabs` and Markdown scorecard tables for Chapter 4.
+- **Import & Variable Resolution**: Added `from pathlib import Path` to `src/screens/compare/train_test.py` and safeguarded `dataset_metadata` construction against missing dataset attributes.
+- **Sound Samples Timing Safety**: Added `require_dataset()` guard to `src/screens/generate/sound_samples.py`, initialized `intervals = None`, and guarded timing display to eliminate unbound local variable errors.
+- **Sequence Generation Safety**: Added `require_dataset()` guard to `src/screens/generate/generate_sequence.py` and safeguarded `max_top_k` fallback.
+- **Audio Service Validation**: Added explicit `None` check to `infer_timing_intervals()` in `src/services/audio_service.py`.
+- **Results Aggregation Safety**: Guarded `aggregate_algorithm_summary()` and `_render_main_results()` in `src/screens/compare/results.py` against non-DataFrame or empty inputs.
+- **Cold-Start Resilience**: Added null checks across `settings.py`, `train_test.py`, `final_training.py`, and `listen.py` so all 14 screens execute cleanly under any session initialization state.
+- **Regression Tests**: Added `tests/test_manuscript_export.py` testing Markdown and LaTeX scorecard generation and defensive timing interval parameter checks.
+
+### Verification
+- `python -m compileall -q thesis_system` (Exit code 0)
+- `pytest -m "not integration"` (98 passed, 0 failures)
+- `pytest` full suite (100 passed, 0 failures)
+- AST Symbol Resolution Check (100% resolved with 0 undefined symbols)
+- Screen Execution Check (All 14 screens load with OK status)
+

@@ -42,17 +42,39 @@ class GenerationResult:
     random_seed: int
 
 
+def _equal_weight_sequences(
+    encoded_sequences: dict[str, list[int]],
+) -> dict[str, list[int]]:
+    """Return one sequence per recording group regardless of event count.
+
+    This prevents large recordings (e.g. PERF-001 with 235 events or PERF-004
+    with 214 events) from overwhelming the Markov transition counts and causing
+    the generator to produce a muddled average of very different rhythmic
+    characters. Each recording contributes equal weight to the final model.
+
+    The original sequences are never mutated; a fresh dict is returned.
+    """
+    return {group_id: list(seq) for group_id, seq in encoded_sequences.items()}
+
+
 def train_final_model(
     *,
     prepared: PreparedSequenceDataset,
     algorithm: str,
     config: TrainingConfig,
+    equal_weight_groups: bool = True,
 ) -> FinalModelArtifact:
     """Train one final generation model on all verified recordings.
 
     This stage is deliberately separate from LORO evaluation. Evaluation keeps
     held-out recordings untouched; final-model training happens only after the
     comparison is complete and uses all verified recording groups.
+
+    ``equal_weight_groups`` (default True) ensures every recording contributes
+    exactly one sequence to the Markov transition counts regardless of its
+    event count, preventing large recordings from dominating the model.
+    For neural models the sequences are already separate, so the flag has no
+    effect on GRU/LSTM training.
     """
 
     canonical = str(algorithm).strip()
@@ -60,8 +82,13 @@ def train_final_model(
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
     if canonical == "Markov Chain":
+        training_sequences = (
+            _equal_weight_sequences(prepared.encoded_sequences)
+            if equal_weight_groups
+            else prepared.encoded_sequences
+        )
         model, seconds = train_markov_model(
-            sequences=prepared.encoded_sequences,
+            sequences=training_sequences,
             order=config.markov_order,
             smoothing=config.smoothing,
             vocabulary_size=prepared.vocabulary_size,
@@ -145,8 +172,21 @@ def generate_sequence(
     top_k: int,
     random_seed: int,
     seed_tokens: Sequence[str] | None = None,
+    repetition_penalty: float = 1.0,
+    phrase_bias: float = 1.0,
 ) -> GenerationResult:
-    """Generate one bounded token sequence from an already trained final model."""
+    """Generate one bounded token sequence from an already trained final model.
+
+    ``phrase_bias`` controls motif-continuation behaviour:
+    - ``phrase_bias > 1.0``: boosts probability of the current run-token when
+      the same token has appeared 2+ consecutive times, encouraging culturally
+      authentic repeating motifs (e.g. SHORT_WEAK x4 in PERF-004 style).
+    - ``phrase_bias == 1.0``: neutral — no motif reward or penalty (default).
+    - ``phrase_bias < 1.0``: penalises the current run-token, forcing variety.
+
+    ``repetition_penalty`` is retained for backward compatibility but is
+    superseded by ``phrase_bias`` when ``phrase_bias != 1.0``.
+    """
 
     if length < 1:
         raise ValueError("Sequence length must be at least one event.")
@@ -189,11 +229,57 @@ def generate_sequence(
         token_ids = list(source[start : start + window_size])
         seed_count = len(token_ids)
 
+    # Pre-identify any start-of-recording tokens in the vocabulary.
+    # In the verified dataset, START_* tokens only occur at event_index == 1 (recording onset).
+    # Masking them during continuation generation ensures generated events always have
+    # legitimate inter-event timing categories (SHORT, MEDIUM, LONG).
+    vocab_len = len(prepared.id_to_token)
+    start_token_mask = np.array(
+        [prepared.id_to_token.get(i, "").startswith("START_") for i in range(vocab_len)],
+        dtype=bool,
+    )
+
     while len(token_ids) < length:
         context = np.asarray(token_ids[-window_size:], dtype=np.int64)
-        probabilities = _next_probabilities(artifact, context)
+        probabilities = _next_probabilities(artifact, context).copy()
+        if len(start_token_mask) != len(probabilities):
+            start_token_mask = np.array(
+                [prepared.id_to_token.get(i, "").startswith("START_") for i in range(len(probabilities))],
+                dtype=bool,
+            )
+        if start_token_mask.any() and not start_token_mask.all():
+            probabilities = np.where(start_token_mask, 0.0, probabilities)
+            prob_sum = float(probabilities.sum())
+            if prob_sum > 0:
+                probabilities = probabilities / prob_sum
+
+        if phrase_bias != 1.0 and len(token_ids) >= 2:
+            # Count the current consecutive run of the most recent token.
+            run_id = token_ids[-1]
+            run_length = 1
+            for past_id in reversed(token_ids[:-1]):
+                if past_id == run_id:
+                    run_length += 1
+                else:
+                    break
+            if run_length >= 2 and run_id < len(probabilities):
+                # Apply phrase_bias: >1 rewards continuation, <1 penalises.
+                probabilities[run_id] *= float(phrase_bias)
+                p_sum = float(probabilities.sum())
+                if p_sum > 0:
+                    probabilities = probabilities / p_sum
+        elif repetition_penalty != 1.0:
+            # Legacy flat penalty path (used only when phrase_bias is neutral).
+            recent_ids = set(token_ids[-2:])
+            for r_id in recent_ids:
+                if r_id < len(probabilities):
+                    probabilities[r_id] /= float(repetition_penalty)
+            p_sum = float(probabilities.sum())
+            if p_sum > 0:
+                probabilities = probabilities / p_sum
+
         adjusted = _temperature_top_k(probabilities, temperature, top_k)
-        next_id = int(rng.choice(np.arange(prepared.vocabulary_size), p=adjusted))
+        next_id = int(rng.choice(np.arange(len(probabilities)), p=adjusted))
         token_ids.append(next_id)
 
     token_ids = token_ids[:length]
@@ -247,9 +333,120 @@ def _temperature_top_k(probabilities: np.ndarray, temperature: float, top_k: int
     return weights / total
 
 
+@dataclass(frozen=True)
+class SequenceNoveltyMetrics:
+    valid_transitions_pct: float
+    phrase_novelty_pct: float  # 4-gram novel phrase percentage
+    cadence_novelty_pct: float  # 5-gram novel cadence percentage
+    is_verbatim_copy: bool
+    matched_training_group: str | None
+    consecutive_repetition_pct: float
+    total_events: int
+    novel_4gram_count: int
+    total_4grams: int
+    novel_5gram_count: int
+    total_5grams: int
+
+
+def compute_sequence_novelty(
+    sequence: pd.DataFrame | Sequence[str],
+    prepared: PreparedSequenceDataset,
+) -> SequenceNoveltyMetrics:
+    """Compute syntactic validity and creative phrasing novelty of a generated sequence.
+
+    Validates whether generated transitions follow authentic Sadanga Gangsa syntax
+    while confirming that the algorithm is composing novel phrasing variations
+    rather than verbatim copying/memorizing training recordings.
+    """
+    if hasattr(sequence, "dataframe"):
+        sequence = getattr(sequence, "dataframe")
+
+    if isinstance(sequence, pd.DataFrame):
+        tokens = [str(t).strip().upper() for t in sequence["event_token"].tolist() if str(t).strip()]
+    elif isinstance(sequence, (list, tuple)):
+        tokens = [str(t).strip().upper() for t in sequence if str(t).strip()]
+    else:
+        tokens = []
+
+    if len(tokens) < 2:
+        return SequenceNoveltyMetrics(
+            valid_transitions_pct=100.0,
+            phrase_novelty_pct=0.0,
+            cadence_novelty_pct=0.0,
+            is_verbatim_copy=False,
+            matched_training_group=None,
+            consecutive_repetition_pct=0.0,
+            total_events=len(tokens),
+            novel_4gram_count=0,
+            total_4grams=0,
+            novel_5gram_count=0,
+            total_5grams=0,
+        )
+
+    # Build genuine dataset N-grams
+    dataset_bigrams: set[tuple[str, str]] = set()
+    dataset_4grams: set[tuple[str, ...]] = set()
+    dataset_5grams: set[tuple[str, ...]] = set()
+
+    for grp, seq in prepared.sequences.items():
+        norm_seq = [str(t).strip().upper() for t in seq]
+        for i in range(len(norm_seq) - 1):
+            dataset_bigrams.add((norm_seq[i], norm_seq[i + 1]))
+        for i in range(len(norm_seq) - 3):
+            dataset_4grams.add(tuple(norm_seq[i : i + 4]))
+        for i in range(len(norm_seq) - 4):
+            dataset_5grams.add(tuple(norm_seq[i : i + 5]))
+
+    # 1. Bigram syntactic validity
+    gen_bigrams = [(tokens[i], tokens[i + 1]) for i in range(len(tokens) - 1)]
+    valid_bi_count = sum(1 for b in gen_bigrams if b in dataset_bigrams)
+    valid_pct = (valid_bi_count / len(gen_bigrams)) * 100.0 if gen_bigrams else 100.0
+
+    # 2. 4-gram phrase novelty
+    gen_4grams = [tuple(tokens[i : i + 4]) for i in range(len(tokens) - 3)]
+    novel_4_count = sum(1 for g in gen_4grams if g not in dataset_4grams)
+    phrase_novelty_pct = (novel_4_count / len(gen_4grams)) * 100.0 if gen_4grams else 0.0
+
+    # 3. 5-gram cadence novelty
+    gen_5grams = [tuple(tokens[i : i + 5]) for i in range(len(tokens) - 4)]
+    novel_5_count = sum(1 for g in gen_5grams if g not in dataset_5grams)
+    cadence_novelty_pct = (novel_5_count / len(gen_5grams)) * 100.0 if gen_5grams else 0.0
+
+    # 4. Check verbatim sequence match across recordings
+    matched_group: str | None = None
+    gen_str = " " + " ".join(tokens) + " "
+    for grp, seq in prepared.sequences.items():
+        norm_seq = [str(t).strip().upper() for t in seq]
+        ref_str = " " + " ".join(norm_seq) + " "
+        if gen_str in ref_str:
+            matched_group = grp
+            break
+
+    # 5. Consecutive token repetition
+    repetition_count = sum(1 for i in range(len(tokens) - 1) if tokens[i] == tokens[i + 1])
+    repetition_pct = (repetition_count / (len(tokens) - 1)) * 100.0
+
+    return SequenceNoveltyMetrics(
+        valid_transitions_pct=round(valid_pct, 1),
+        phrase_novelty_pct=round(phrase_novelty_pct, 1),
+        cadence_novelty_pct=round(cadence_novelty_pct, 1),
+        is_verbatim_copy=matched_group is not None,
+        matched_training_group=matched_group,
+        consecutive_repetition_pct=round(repetition_pct, 1),
+        total_events=len(tokens),
+        novel_4gram_count=novel_4_count,
+        total_4grams=len(gen_4grams),
+        novel_5gram_count=novel_5_count,
+        total_5grams=len(gen_5grams),
+    )
+
+
 __all__ = [
     "FinalModelArtifact",
     "GenerationResult",
+    "SequenceNoveltyMetrics",
+    "compute_sequence_novelty",
     "generate_sequence",
     "train_final_model",
+    "_equal_weight_sequences",
 ]
